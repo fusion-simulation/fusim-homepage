@@ -28,7 +28,7 @@ site.use(postcss({
     includes: "./assets/",
     plugins: [cssnano()] 
 }));
-site.ignore("AGENTS.md","CLAUDE.md",)
+site.ignore("AGENTS.md", "CLAUDE.md", "README.md");
 site.copy("assets");
 
 export default site;
