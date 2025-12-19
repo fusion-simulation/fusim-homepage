@@ -1,0 +1,28 @@
+---
+title: 企业日志 | 聚核智算 FUSIM
+description: 聚核智算企业日志列表，记录产品演进、技术洞察与行业观点。
+layout: layouts/base.vto
+---
+
+<section class="section" id="journal-list">
+  <div class="reveal">
+    <h2>企业日志</h2>
+    <p>聚核智算记录产品演进、技术洞察、行业观点与团队故事。</p>
+  </div>
+
+  <div class="card-grid">
+    {{ for post of search.pages("type=journal", "date=desc") }}
+      <article class="card reveal delay-1">
+        {{ if post.data && post.data.date }}
+          <p class="hero-tag" style="margin-bottom: 12px;">{{ post.data.date }}</p>
+        {{ /if }}
+        <h4><a href="{{ post.url }}">
+          {{ if post.data && post.data.title }}{{ post.data.title }}{{ else }}{{ post.title }}{{ /if }}
+        </a></h4>
+        {{ if post.data && post.data.description }}
+          <p>{{ post.data.description }}</p>
+        {{ /if }}
+      </article>
+    {{ /for }}
+  </div>
+</section>

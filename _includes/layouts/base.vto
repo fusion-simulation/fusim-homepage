@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="{{ description }}" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="site-header">
+        <a class="brand" href="/">
+          <span class="brand-mark">F</span>
+          <span class="brand-text">
+            <span>聚核智算</span>
+            <span class="brand-sub">FUSIM Enterprise Portal</span>
+          </span>
+        </a>
+        <nav class="site-nav">
+          <a href="/about/">企业介绍</a>
+          <a href="/journal/">企业日志</a>
+          <a href="/products/">产品矩阵</a>
+          <a href="/responsibility/">企业责任</a>
+          <a href="#contact">预约合作</a>
+          <button class="theme-toggle" aria-label="切换主题">
+            <img class="icon-light" src="{{ 'sun' |> icon("lucide")}}" alt="" aria-hidden="true">
+            <img class="icon-dark" src="{{ 'moon' |> icon("lucide")}}" alt="" aria-hidden="true">
+          </button>
+        </nav>
+        <div class="header-actions">
+          <button class="theme-toggle theme-toggle--mobile" aria-label="切换主题">
+            <img class="icon-light" src="{{ 'sun' |> icon("lucide")}}" alt="" aria-hidden="true">
+            <img class="icon-dark" src="{{ 'moon' |> icon("lucide")}}" alt="" aria-hidden="true">
+          </button>
+          <button class="nav-toggle" aria-label="打开导航" aria-expanded="false">
+            <img class="icon-closed" src="{{ 'menu' |> icon("lucide")}}" alt="" aria-hidden="true">
+            <img class="icon-open" src="{{ 'x' |> icon("lucide")}}" alt="" aria-hidden="true">
+            <span class="nav-toggle-label">Menu</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="content">
+        {{ content }}
+      </main>
+
+      <footer class="site-footer" id="contact">
+        <div>
+          <h3>与聚核智算携手合作</h3>
+          <p>业务合作 / 方案咨询 / 媒体联络：<a href="mailto:{{ email }}">{{ email }}</a></p>
+        </div>
+        <div class="footer-meta">
+          <span>FUSIM 聚核智算</span>
+          <span>© 2025 FUSIM. All rights reserved.</span>
+          <span>备案号：<a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">{{ icp }}</a></span>
+        </div>
+      </footer>
+    </div>
+    <script>
+      const navToggle = document.querySelector('.nav-toggle');
+      const nav = document.querySelector('.site-nav');
+      navToggle?.addEventListener('click', () => {
+        nav.classList.toggle('open');
+        const isOpen = nav.classList.contains('open');
+        navToggle.classList.toggle('is-open', isOpen);
+        navToggle.setAttribute('aria-expanded', String(isOpen));
+        navToggle.setAttribute('aria-label', isOpen ? '关闭导航' : '打开导航');
+      });
+
+      const root = document.documentElement;
+      const themeToggles = document.querySelectorAll('.theme-toggle');
+      const storedTheme = localStorage.getItem('theme');
+      if (storedTheme) root.dataset.theme = storedTheme;
+      themeToggles.forEach((toggle) => {
+        toggle.addEventListener('click', () => {
+          const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+          root.dataset.theme = next;
+          localStorage.setItem('theme', next);
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+_site
+_cache
+.env
+.vscode
+node_modules
+.DS_Store
