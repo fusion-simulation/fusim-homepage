@@ -265,22 +265,46 @@ html[data-theme="dark"] .hero-tag {
 
 .primary-btn,
 .secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 14px 22px;
   border-radius: 10px;
   font-weight: 600;
+  line-height: 1.05;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .primary-btn {
-  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  background: var(--accent);
   color: #0f1116;
-  box-shadow: 0 20px 40px rgba(255, 180, 84, 0.18);
+  box-shadow: 0 20px 40px rgba(63, 109, 246, 0.18);
 }
 
 .secondary-btn {
-  border-color: var(--line);
+  border: 1px solid var(--line);
   color: var(--text);
-  background: var(--bg-soft);
+  background: #fff;
+}
+
+.secondary-btn--accent {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #0f1116;
+  box-shadow: 0 18px 32px rgba(79, 209, 197, 0.2);
+}
+
+.secondary-btn--light {
+  background: #fff;
+  color: #1e2432;
+  border: 1px solid rgba(30, 36, 50, 0.12);
+}
+
+.primary-btn img,
+.secondary-btn img {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .primary-btn:hover,
