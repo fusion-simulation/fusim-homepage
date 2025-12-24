@@ -1,0 +1,36 @@
+---
+title: 论文发表 | 聚核智算 FUSIM
+description: 聚核智算论文与技术报告归档。
+layout: layouts/base.vto
+---
+
+<section class="section" id="publications">
+  <div class="reveal">
+    <h2>论文发表</h2>
+    <p>集中展示聚核智算的论文与技术报告（PDF）。</p>
+  </div>
+
+  {{ if publications && publications.length > 0 }}
+    {{ for group of publications }}
+      <div class="reveal delay-1">
+        <h3 style="font-size: 1.6rem;">{{ group.year }}</h3>
+      </div>
+      <div class="card-grid">
+        {{ for item of group.items }}
+          <article class="card reveal delay-1">
+            <h4>
+              <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
+            </h4>
+            <p class="meta">{{ item.meta }}</p>
+          </article>
+        {{ /for }}
+      </div>
+    {{ /for }}
+  {{ else }}
+    <div class="card reveal delay-1">
+      <h4>暂无论文</h4>
+      <p class="meta">请将 PDF 放入 <code>assets/pub</code>（支持按年份/子目录归档），构建后将自动出现在这里。</p>
+    </div>
+  {{ /if }}
+</section>
+
