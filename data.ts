@@ -14,6 +14,10 @@ export const data: DataType = {
         title: "CBaldur",
         desp: "1.5D 磁约束聚变集成模拟软件",
         url: "https://cbaldur.fusim.cn"
+    },{
+        title: "更多",
+        desp:"敬请期待",
+        url:"#"
     }]
 }
 
