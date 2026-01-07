@@ -7,6 +7,8 @@ import postcss from "lume/plugins/postcss.ts";
 import icons from "lume/plugins/icons.ts";
 
 import cssnano from "npm:cssnano@7.1.2";
+import { data } from "./data.ts";
+
 const site = lume();
 
 type PublicationItem = {
@@ -102,12 +104,9 @@ async function collectPublications(
   });
 }
 
-site.data("slogan", "打造新一代聚变仿真工业软件")
-site.data("slogan_2", "探索聚变仿真软件，为实现终极能源赋能")
-site.data("description", "聚核智算（FUSIM）是一家聚变等离子体软件SaaS服务商，致力于为科研机构和企业提供高效、精准的仿真解决方案，推动聚变能源技术的发展。")
-site.data("icp", "鄂ICP备2025165543号-1")
-site.data("mps", "鄂公网安备42018502008408号")
-site.data("email", "info@fusim.cn")
+for (const [key, value] of Object.entries(data)) {
+  site.data(key, value);
+}
 site.data("publications", await collectPublications("assets/pub"));
 site.use(icons({
     catalogs: [
