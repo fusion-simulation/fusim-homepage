@@ -1,0 +1,29 @@
+---
+title: 社会报导 | 聚核智算 FUSIM
+description: 聚核智算媒体报导与社会关注。
+layout: layouts/base.vto
+---
+
+<section class="section" id="press">
+  <div class="reveal">
+    <h2>社会报导</h2>
+  </div>
+
+  {{ if reports && reports.length > 0 }}
+    <div class="card-grid">
+      {{ for item of reports }}
+        <article class="card reveal delay-1">
+          <h4>
+            <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
+          </h4>
+          <p class="meta">{{ item.date }}</p>
+        </article>
+      {{ /for }}
+    </div>
+  {{ else }}
+    <div class="card reveal delay-1">
+      <h4>暂无报导</h4>
+      <p>请在页面顶部 YAML 中添加 reports 数据。</p>
+    </div>
+  {{ /if }}
+</section>

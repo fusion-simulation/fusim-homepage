@@ -11,13 +11,11 @@ layout: layouts/base.vto
     <p>高性能云算力资源池，统一资源分配、任务调度；企业级数据安全与备份。</p>
   </div>
   <div class="card-grid">
-    <a href="https://cbaldur.fusim.cn" class="card reveal delay-1" target="_blank" rel="noopener noreferrer">
-      <h4>CBaldur</h4>
-      <p>1.5D 磁约束聚变集成模拟软件</p>
-    </a>
-    <div class="card reveal delay-2">
-      <h4>更多产品敬请期待</h4>
-      <p></p>
-    </div>
+    {{ for item of matrix }}
+      <a href="{{ item.url }}" class="card reveal delay-1" target="_blank" rel="noopener noreferrer">
+        <h4>{{ item.title }}</h4>
+        <p>{{ item.desp }}</p>
+      </a>
+    {{ /for }}
   </div>
 </section>
