@@ -8,7 +8,7 @@ export const data: DataType = {
     reports: [{
         title: '助力中国"人造太阳"取得关键突破',
         date:"2026-1-6",
-        url:"https://mp.weixin.qq.com/s/slOB-55vjSeG8Gr73ctfpw" 
+        url:"https://mp.weixin.qq.com/s/slOB-55vjSeG8Gr73ctfpw"
     }],
     matrix: [{
         title: "CBaldur",
