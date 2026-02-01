@@ -77,6 +77,7 @@ async function collectPublications(
   } catch {
     return [];
   }
+// Group by year
 
   const groups = new Map<string, PublicationItem[]>();
   for (const item of items) {
@@ -123,7 +124,7 @@ site.use(postcss({
     includes: "./assets/css/",
     plugins: [cssnano()]
 }));
-site.ignore("AGENTS.md", "CLAUDE.md", "README.md");
+site.ignore("AGENTS.md", "CLAUDE.md", "README.md", "docs/plans");
 site.copy("assets");
 
 export default site;
