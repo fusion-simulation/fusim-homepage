@@ -77,8 +77,8 @@ async function collectPublications(
   } catch {
     return [];
   }
-// Group by year
 
+  // Group by year
   const groups = new Map<string, PublicationItem[]>();
   for (const item of items) {
     const { year, sortKey: _sortKey, ...publicItem } = item;
