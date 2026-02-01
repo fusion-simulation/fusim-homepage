@@ -22,7 +22,6 @@ export const data: DataType = {
 }
 
 
-
 interface DataType{
     slogan: string;
     slogan_2: string;

@@ -48,7 +48,19 @@
       </header>
 
       <main class="content">
-        {{ content }}
+        {{ if prose }}
+          <article class="prose">
+            {{ if prose_card }}
+              <div class="prose-card">
+                {{ content }}
+              </div>
+            {{ else }}
+              {{ content }}
+            {{ /if }}
+          </article>
+        {{ else }}
+          {{ content }}
+        {{ /if }}
       </main>
 
       <footer class="site-footer" id="contact">
