@@ -21,19 +21,19 @@ product_section: saas
 
    香蕉轨道 (Banana Orbits) 追踪： 我们利用 NIMROD 的漂移动力学模型，精确还原托卡马克中束缚粒子的特殊运动轨迹。这对于理解新经典输运及粒子损失机制至关重要。
 
-<img src="/assets/image/banana.gif" width = "1200" alt="图片名称" align=center />
+<img src="/assets/image/banana.gif" width = "1200" alt="图片名称" align=center loading="lazy" />
 
 
    鱼骨模 (Fishbone Mode) 演化： 模拟由高能粒子驱动的磁流体不稳定性。我们的方案能够捕捉非线性阶段的模结构演化，为实验中的振荡现象提供理论解释。
 
-<img src="/assets/image/fisbone.gif" width = "1200" alt="图片名称" align=center />
+<img src="/assets/image/fisbone.gif" width = "1200" alt="图片名称" align=center loading="lazy" />
 
 ##### 2. 反场构型 (FRC) 的动态演化与磁压缩
    反场构型因其高 beta（等离子体比压）特性，是替代聚变方案的热点。
 
    磁压缩模拟 (Y.-M. Ma 2023)： 我们的团队实现了对 FRC 形成、平稳及磁压缩加热过程的全过程模拟。通过调整磁场梯度与压缩比，优化等离子体参数，为新型聚变堆设计提供关键参数支撑。
 
-   <img src="/assets/image/frc.gif" width = "1200" alt="图片名称" align=center />
+   <img src="/assets/image/frc.gif" width = "1200" alt="图片名称" align=center loading="lazy" />
 
 ##### 3. 垂直位移事件 (VDE) 与装置安全
    对于大型托卡马克，等离子体失去垂直控制会导致强烈的机械冲击。
