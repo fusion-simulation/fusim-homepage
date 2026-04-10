@@ -4,3 +4,9 @@ _cache
 .vscode
 node_modules
 .DS_Store
+# Ignore large data files
+assets/pub/**/*.dat
+assets/pub/**/*.zip
+assets/pub/**/data/
+assets/pub/**/*_dump.*
+assets/pub/**/*_energy.*
