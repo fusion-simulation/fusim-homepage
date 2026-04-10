@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -31,7 +33,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519 
+          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "${{ secrets.DEPLOY_SSH_PORT }}" "${{ secrets.DEPLOY_SSH_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Deploy via rsync
