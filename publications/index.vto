@@ -22,6 +22,12 @@ layout: layouts/base.vto
               <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>
             </h4>
             <p class="meta">{{ item.meta }}</p>
+            {{ if item.dataHtml }}
+              <div class="data-files" style="margin-top: 0.5rem; font-size: 0.9em;">
+                <strong>附加文件：</strong>
+                {{ item.dataHtml |> safe }}
+              </div>
+            {{ /if }}
           </article>
         {{ /for }}
       </div>
@@ -29,7 +35,7 @@ layout: layouts/base.vto
   {{ else }}
     <div class="card reveal delay-1">
       <h4>暂无论文</h4>
-      <p class="meta">请将 PDF 放入 <code>assets/pub</code>（支持按年份/子目录归档），构建后将自动出现在这里。</p>
+      <p class="meta">请将 PDF 放入 <code>assets/pub</code>（支持按年份/子目录归档）。放入同级目录中的其他任意类型文件（如 `.dat`, `.zip`）将自动作为数据文件供用户下载和展示。</p>
     </div>
   {{ /if }}
 </section>
