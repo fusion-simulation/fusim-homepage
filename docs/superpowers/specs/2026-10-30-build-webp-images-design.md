@@ -78,3 +78,11 @@
 3. `npm run dev` + 请求 `/assets/image/frc.webp`：200、`content-type: image/webp`；再请求走缓存。
 4. `npm run build:ssg` 正常，未重复转码。
 5. `npx tsc -b`、`npm run lint` 干净。
+
+## 实现偏移（以计划与代码为准）
+
+上面是落地前的设计稿，实际实现有以下出入，以最终计划与 `vite-plugins/webp.ts` 为准：
+
+- **产物落盘**：转换结果不是用 `this.emitFile(...)` 发进打包图，而是 `closeBundle` 里把缓存文件 `copyFileSync` 到 `outDir`、再删掉 `copyPublicDir` 拷进来的原图；单张失败只警告不中断。
+- **watcher 与缓存键**：dev 的 watcher 只在源图 `add` / `unlink` 时重扫，`change` 不重扫——缓存键本身含 `mtimeMs`，内容一变必然落空；缓存键为 `源相对路径 | mtimeMs | size | quality | effort`，不含动/静标记（是否动图由转码时的 `metadata().pages` 现算）。
+- **实测数字**：5 张 GIF 合计 42.4 MiB（44,495,080 B）→ 18.4 MiB（19,281,642 B），整体 −57%，而非“平均压掉约 80%”；其中 `ppcfad02bcsupp2.gif` 12.0 MiB → 12.85 MiB（+6.9%），与“变大也照转”的决定一致。

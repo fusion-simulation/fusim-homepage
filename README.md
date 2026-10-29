@@ -138,20 +138,23 @@ public/assets/              # 图片、论文 PDF 等静态资源
   改为 frontmatter 的 `wide: true`，由 Griffel 样式实现（效果一致，且不会污染全局）。
 - **代码块**：MDX 代码块会得到 `.prose pre / code` 样式，但不再引入 Prism 语法高亮
   （原站点内容中没有代码块；需要时可加 `rehype-prism-plus`）。
-- **图片转 WebP**：`vite-plugins/webp.ts` 在 build 时把 `public/` 下的图片转成 WebP 并改写全部引用，
-  `dist/` 里只留一份更小的字节。规则如下：
+- **图片转 WebP**：`vite-plugins/webp.ts` 在 build 时把 `public/` 下的图片转成 WebP，并把编译后模块与
+  `index.html` 里的引用改成 `.webp`；`dist/` 里只留一份更小的字节。规则如下：
 
   - **扫描范围**：`public/`（含子目录）里的 `.png` / `.jpg` / `.jpeg` / `.gif`。public 里已有同名 `.webp`、
     或目标名已被另一张源图占用的源图会跳过并保留原图。
   - **默认质量**：sharp `webp({ quality: 75, effort: 4 })`，多帧图（metadata 的 `pages > 1`，本站 GIF 均属此类）
     显式加 `animated: true` 保留全部帧。转换是“无脑”的：变大的也转（如 `ppcfad02bcsupp2.gif` 12 MB → 13 MB）。
     全站实测 42 MB → 18 MB（-57%）。
+  - **参数覆盖**：可在 `vite.config.ts` 里用 `webpImages({ quality, effort })` 覆盖默认值，缓存目录
+    同理用 `cacheDir` 指定。
   - **源图去向**：`public/` 里的源图原样保留（仍受 git 跟踪），只有 `dist/` 在拷入 WebP 后删除对应原图。
   - **缓存**：转码结果按「源路径 + mtime + 大小 + 质量 + effort」为键落在
     `node_modules/.cache/fusim-webp/`，第二次构建直接命中（实测 8.5 s → 0 s）。想手动重新转码，
     删掉该目录即可，下次构建自动重转。
   - **引用改写**：编译后的模块代码与 `index.html` 里的 `/assets/image/x.gif` 会替换为
-    `/assets/image/x.webp`（按文件名边界匹配，保留 query 与 hash）。dev 模式不预转换，
+    `/assets/image/x.webp`（按文件名边界匹配，保留 query 与 hash）。从 `public/` 原样拷贝进 `dist/`
+    的文件（例如其中 CSS 的 `url()`）不在改写范围内。dev 模式不预转换，
     请求 `.webp` 时由中间件按需转码并缓存。转换失败的源图不改写引用，`dist/` 保留可用原图。
   - **不做 AVIF**：sharp/libheif 的动图 AVIF 有「堆叠帧总高 ≤ 16384 px」的上限，本站动图
     （36 帧 × 450 px 已近顶，5 张 GIF 全部超出）都装不进去，收益抵不过成本，故只做 WebP。
