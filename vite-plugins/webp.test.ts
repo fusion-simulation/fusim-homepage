@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -125,6 +126,28 @@ test('静图转成单帧 webp', async () => {
   const meta = await sharp(out).metadata()
   assert.equal(meta.format, 'webp')
   assert.equal(meta.pages ?? 1, 1)
+})
+
+test('编码前按 EXIF 方向自动摆正，缓存键含语义版本', async () => {
+  const dir = makePublicDir([])
+  const abs = path.join(dir, 'phone.jpg')
+  // 16x8 的横幅照片带 orientation 6（顺转 90° 后才是正确朝向），摆正后应为 8x16
+  await sharp({ create: { width: 16, height: 8, channels: 3, background: '#654321' } }).jpeg().withMetadata({ orientation: 6 }).toFile(abs)
+  assert.equal((await sharp(abs).metadata()).orientation, 6)
+  const { entries } = collectImageEntries(dir)
+  const output = await encodeWebp(entries[0].sourceAbs, { quality: 75, effort: 4 })
+  const meta = await sharp(output).metadata()
+  assert.equal(meta.width, 8)
+  assert.equal(meta.height, 16)
+  // 输出不再带 orientation 标签：像素已经被物理旋转，不需要陪葬的元数据
+  assert.equal(meta.orientation ?? null, null)
+
+  // 缓存键的语义版本：本测试重建旧格式（无版本段）的键，两者必须不同，否则旧逻辑的缓存会被复用
+  const cacheDir = path.join(dir, 'cache')
+  const stats = fs.statSync(abs)
+  const options = { quality: 75, effort: 4 }
+  const oldFormatted = crypto.createHash('sha1').update(`${entries[0].sourceRel}|${stats.mtimeMs}|${stats.size}|q75e4`).digest('hex')
+  assert.notEqual(cachePathFor(cacheDir, entries[0], stats, options), path.join(cacheDir, `${oldFormatted}.webp`))
 })
 
 test('坏图报错带文件路径且保留原始错误', async () => {

@@ -9,6 +9,9 @@ export const SOURCE_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.
 
 const WEBP_EXTENSION = '.webp'
 
+/** 缓存键的语义版本：编码逻辑变化（如新增 EXIF 自动摆正）时升版，旧产物自然全部失效不会误复用。 */
+export const CACHE_KEY_VERSION = 'v2'
+
 /** 一张待转换图片：`rel` 用 posix 分隔符且不带前导 `/`，`url` 带前导 `/`。 */
 export type ImageEntry = {
   sourceRel: string
@@ -162,7 +165,8 @@ export async function encodeWebp(sourceAbs: string, options: EncodeOptions): Pro
   try {
     const { pages } = await sharp(sourceAbs).metadata()
     const pipeline = pages !== undefined && pages > 1 ? sharp(sourceAbs, { animated: true }) : sharp(sourceAbs)
-    return await pipeline.webp({ quality: options.quality, effort: options.effort }).toBuffer()
+    // 自动按 EXIF 方向摆正（rotate 无参）：输出会丢 orientation 标签，必须在编码前把朝向应用到像素上
+    return await pipeline.rotate().webp({ quality: options.quality, effort: options.effort }).toBuffer()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     throw new Error(`[fusim:webp] 转码失败 ${sourceAbs}：${message}`, { cause: error })
@@ -173,7 +177,8 @@ export async function encodeWebp(sourceAbs: string, options: EncodeOptions): Pro
  * 算缓存文件路径。
  *
  * 源相对路径决定是哪个文件，`mtimeMs`/`size` 决定字节内容是否变过，
- * `quality`/`effort` 决定编码结果——任一变化都必须落到不同缓存文件，否则会复用旧字节。
+ * `quality`/`effort` 决定编码结果，语义版本位标识编码逻辑的代次（如引入 EXIF 自动摆正）。
+ * 任一变化都必须落到不同缓存文件，否则会复用旧字节。
  */
 export function cachePathFor(
   cacheDir: string,
@@ -181,7 +186,7 @@ export function cachePathFor(
   stats: { mtimeMs: number; size: number },
   options: EncodeOptions,
 ): string {
-  const key = `${entry.sourceRel}|${stats.mtimeMs}|${stats.size}|q${options.quality}e${options.effort}`
+  const key = `${CACHE_KEY_VERSION}|${entry.sourceRel}|${stats.mtimeMs}|${stats.size}|q${options.quality}e${options.effort}`
   return path.join(cacheDir, `${crypto.createHash('sha1').update(key).digest('hex')}.webp`)
 }
 
