@@ -10,6 +10,7 @@ import {
   collectImageEntries,
   encodeWebp,
   ensureWebp,
+  formatPercent,
   rewriteReferences,
   setSharpLoader,
   webpImages,
@@ -453,7 +454,7 @@ test('同一实例连续两轮构建，状态重置后报告张数不累加', as
   assert.equal(reportLines.some((line) => line.includes('2 张')), false)
 })
 
-test('closeBundle 单张拷贝失败只警告并继续，报告照常打印且不删原图', async () => {
+test('closeBundle 拷贝失败：报告只算发布条目，随后抛错中止构建', async () => {
   const dir = makePublicDir([])
   await writePng(path.join(dir, 'img/a.png'))
   await writePng(path.join(dir, 'img/b.png'))
@@ -464,12 +465,11 @@ test('closeBundle 单张拷贝失败只警告并继续，报告照常打印且�
   fs.copyFileSync(path.join(dir, 'img/a.png'), path.join(dir, 'dist/img/a.png'))
   fs.copyFileSync(path.join(dir, 'img/b.png'), path.join(dir, 'dist/img/b.png'))
 
-  // 第一张拷贝失败，第二张照常拷贝
+  // 第一张（a）拷贝失败，第二张照常拷贝。converted 按异步完成顺序填充，
+  // 不能用调用序定位，要用目标路径锁住 a
   const realCopy = fs.copyFileSync.bind(fs)
-  let copies = 0
   const copy = mock.method(fs, 'copyFileSync', (src: fs.PathLike, dest: fs.PathLike) => {
-    copies++
-    if (copies === 1) throw new Error('copy boom')
+    if (String(dest).endsWith(`${path.sep}img${path.sep}a.webp`)) throw new Error('copy boom')
     realCopy(src, dest)
   })
   const warnings: unknown[][] = []
@@ -480,20 +480,36 @@ test('closeBundle 单张拷贝失败只警告并继续，报告照常打印且�
   console.log = (...args: unknown[]) => void logs.push(args)
   try {
     ;(plugin.closeBundle as any).call({})
+    assert.fail('引用已被改写成 .webp，发布失败必须让构建失败')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    assert.equal(message.startsWith('[fusim:webp]'), true, message)
+    assert.equal(message.includes('1 个'), true, message)
+    assert.equal(message.includes('img/a.png'), true, message)
   } finally {
     copy.mock.restore()
     console.warn = origWarn
     console.log = origLog
   }
+  // 失败有告警，报告不被吞掉且在抛错之前已打印
   assert.equal(warnings.length, 1)
   assert.equal(String(warnings[0][0]).includes('拷贝失败'), true)
   assert.equal(String(warnings[0][0]).includes('img/a.png'), true)
-  // 拷贝失败的原图不删；后续条目的 .webp 照常落盘且原图照删
-  assert.equal(fs.existsSync(path.join(dir, 'dist/img/a.png')), true)
+  assert.equal(logs.length > 0, true)
+  // 拷贝失败的 .webp 没落盘、原图绝不能删；后续条目照常发布且原图照删
   assert.equal(fs.existsSync(path.join(dir, 'dist/img/a.webp')), false)
+  assert.equal(fs.existsSync(path.join(dir, 'dist/img/a.png')), true)
   assert.equal(fs.existsSync(path.join(dir, 'dist/img/b.webp')), true)
   assert.equal(fs.existsSync(path.join(dir, 'dist/img/b.png')), false)
-  // 报告不被吞掉
+  // 报告只统计真正发布的条目：失败的那张既不算张数也不进明细
   const reportLines = logs.map((args) => String(args[0]))
-  assert.equal(reportLines.some((line) => line.includes('2 张')), true)
+  assert.equal(reportLines.some((line) => line.includes('1 张')), true)
+  assert.equal(reportLines.some((line) => line.includes('2 张')), false)
+  assert.equal(reportLines.some((line) => line.includes('img/b.png')), true)
+  assert.equal(reportLines.some((line) => line.includes('img/a.png')), false)
+})
+
+test('报告百分比：聚合变大时输出 +N%，不钳为 0', () => {
+  assert.equal(formatPercent(1000, 100), '-90%')
+  assert.equal(formatPercent(1000, 1070), '+7%')
 })

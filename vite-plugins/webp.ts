@@ -276,6 +276,12 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
 }
 
+/** 报告用的增减百分比：不钳取 0 %，聚合真的变大时如实输出如 +7%（转换本身仍无条件）。 */
+export function formatPercent(sourceBytes: number, outputBytes: number): string {
+  const percent = Math.round((1 - outputBytes / sourceBytes) * 100)
+  return percent >= 0 ? `-${percent}%` : `+${-percent}%`
+}
+
 /** 插件选项：转码质量 / 压缩投入 / 缓存目录。 */
 export type WebpOptions = { quality?: number; effort?: number; cacheDir?: string }
 
@@ -291,7 +297,8 @@ export type WebpOptions = { quality?: number; effort?: number; cacheDir?: string
  * - `configureServer`（dev）注册中间件：请求命中改写目标且 `public/` 里没有该 `.webp` 时，
  *   走 `ensureWebp` 取缓存或现转后直接回字节；watcher 在源图新增/删除时重扫、同步 dev 改写集
  *   并发整页刷新，实际字节由中间件按需补上；
- * - `closeBundle` 把转好的文件拷进 outDir、删掉原位拷贝的源图并打印报告，单张失败只警告不中断。
+ * - `closeBundle` 把转好的文件拷进 outDir、删掉原位拷贝的源图并打印报告；报告只统计发布成功的
+ *   条目，有拷贝 / 删除失败时仍在打印报告后汇总抛错，让构建明确失败；
  */
 export function webpImages(options: WebpOptions = {}): Plugin {
   const encodeOptions: EncodeOptions = {
@@ -440,8 +447,11 @@ export function webpImages(options: WebpOptions = {}): Plugin {
     closeBundle() {
       if (command !== 'build' || isSsr) return
 
+      // 逐条处理：拷贝失败只警告并继续，不能拖垮其余文件，更不能删掉没拷成功的原图；
+      // 报告最后打印（只算发布成功的条目），再有任何失败都汇总成一个 Error 让构建失败
+      const published: Converted[] = []
+      const failedRels: string[] = []
       for (const item of converted) {
-        // 单张失败只警告并继续，不能拖垮其余文件，更不能吞掉报告
         try {
           // public/ 资源不进打包图，直接把转好的文件落盘到 outDir
           const targetAbs = path.join(outDir, item.entry.targetRel)
@@ -449,26 +459,36 @@ export function webpImages(options: WebpOptions = {}): Plugin {
           fs.copyFileSync(item.cachePath, targetAbs)
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
+          failedRels.push(item.entry.sourceRel)
           console.warn(`[fusim:webp] 拷贝失败 ${item.entry.sourceRel}：${message}，保留原图备查。`)
-          continue
+          continue // 拷贝没成功就删原图会让 .webp 与原图都不在 dist
         }
-        // 拷贝成功的才删掉 copyPublicDir 拷进来的源图；删除失败同样只警告，outDir 里多留一份原图无害
         try {
           const sourceAbs = path.join(outDir, item.entry.sourceRel)
           if (fs.existsSync(sourceAbs)) fs.unlinkSync(sourceAbs)
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
+          failedRels.push(item.entry.sourceRel)
           console.warn(`[fusim:webp] 删除原图失败 ${item.entry.sourceRel}：${message}`)
+        }
+        // 拷贝成功（含删除失败）就计入了发布：.webp 已落盘，报告应统计它
+        published.push(item)
+      }
+
+      // 报告只统计真正发布（拷进 outDir）的条目：失败项没进 dist，不算张数也不算省下的字节
+      if (published.length > 0) {
+        const totalSource = published.reduce((sum, item) => sum + item.sourceBytes, 0)
+        const totalOutput = published.reduce((sum, item) => sum + item.outputBytes, 0)
+        console.log(`[fusim:webp] ${published.length} 张 · ${formatBytes(totalSource)} → ${formatBytes(totalOutput)} (${formatPercent(totalSource, totalOutput)}) · ${(conversionMs / 1000).toFixed(1)}s`)
+        for (const item of published) {
+          console.log(`[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(item.outputBytes)}`)
         }
       }
 
-      if (converted.length === 0) return
-      const totalSource = converted.reduce((sum, item) => sum + item.sourceBytes, 0)
-      const totalOutput = converted.reduce((sum, item) => sum + item.outputBytes, 0)
-      const savedPercent = Math.max(0, Math.round((1 - totalOutput / totalSource) * 100))
-      console.log(`[fusim:webp] ${converted.length} 张 · ${formatBytes(totalSource)} → ${formatBytes(totalOutput)} (-${savedPercent}%) · ${(conversionMs / 1000).toFixed(1)}s`)
-      for (const item of converted) {
-        console.log(`[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(item.outputBytes)}`)
+      // transform 已经把引用改成 .webp 却没发布成功，继续让构建过绿会产出链到不存在文件的站点：
+      // 汇总失败条目数明确失败，构建输出去修（磁盘满 / 权限等）
+      if (failedRels.length > 0) {
+        throw new Error(`[fusim:webp] ${failedRels.length} 个条目发布失败（拷贝 .webp 或删除原图），构建判败：${failedRels.join('、')}`)
       }
     },
   }
