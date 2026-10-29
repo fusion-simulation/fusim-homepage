@@ -2,7 +2,35 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
-import sharp from 'sharp'
+
+/** sharp 构造函数类型：仅类型层面引用，运行时由懒加载动态 import 提供。 */
+type SharpFactory = (typeof import('sharp'))['default']
+
+/** 当前 sharp 加载器：默认动态 import 并缓存；测试可注入替代实现模拟包缺失 / 原生二进制损坏。 */
+let sharpLoader: () => Promise<SharpFactory> = async () => (await import('sharp')).default
+/** 已加载的 sharp 构造函数；换加载器或加载失败时清空以便重试。 */
+let sharpFactory: SharpFactory | undefined
+
+/** 注入替代的 sharp 加载器并返回原加载器（用于恢复），让 vite.config.ts 的加载不依赖 sharp 的好坏。 */
+export function setSharpLoader(loader: () => Promise<SharpFactory>): () => Promise<SharpFactory> {
+  const previous = sharpLoader
+  sharpLoader = loader
+  sharpFactory = undefined
+  return previous
+}
+
+/** 懒加载 sharp：成功即缓存；失败抛出带安装提示的错误（cause 保留原始异常），不拖死整个配置加载。 */
+async function loadSharp(): Promise<SharpFactory> {
+  if (sharpFactory) return sharpFactory
+  try {
+    sharpFactory = await sharpLoader()
+  } catch (error) {
+    sharpFactory = undefined
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`[fusim:webp] 无法加载 sharp（请先 npm i -D sharp）：${message}`, { cause: error })
+  }
+  return sharpFactory
+}
 
 /** 需要转成 WebP 的源图片扩展名（统一小写后比较）。 */
 export const SOURCE_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.gif']
@@ -163,12 +191,18 @@ export type EncodeOptions = { quality: number; effort: number }
  */
 export async function encodeWebp(sourceAbs: string, options: EncodeOptions): Promise<Buffer> {
   try {
-    const { pages } = await sharp(sourceAbs).metadata()
-    const pipeline = pages !== undefined && pages > 1 ? sharp(sourceAbs, { animated: true }) : sharp(sourceAbs)
+    const factory = await loadSharp()
+    const { pages } = await factory(sourceAbs).metadata()
+    const pipeline = pages !== undefined && pages > 1 ? factory(sourceAbs, { animated: true }) : factory(sourceAbs)
     // 自动按 EXIF 方向摆正（rotate 无参）：输出会丢 orientation 标签，必须在编码前把朝向应用到像素上
     return await pipeline.rotate().webp({ quality: options.quality, effort: options.effort }).toBuffer()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    if (message.startsWith('[fusim:webp] 无法加载 sharp（请先 npm i -D sharp）')) {
+      // 加载失败的专属文案已由 loadSharp 拼好，这里补上出事的源文件路径，保留 cause 链不再包「转码失败」
+      const cause = error instanceof Error ? error : new Error(message)
+      throw new Error(`${message}（源文件：${sourceAbs}）`, { cause })
+    }
     throw new Error(`[fusim:webp] 转码失败 ${sourceAbs}：${message}`, { cause: error })
   }
 }

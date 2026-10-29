@@ -11,6 +11,7 @@ import {
   encodeWebp,
   ensureWebp,
   rewriteReferences,
+  setSharpLoader,
   webpImages,
 } from './webp.ts'
 
@@ -200,6 +201,26 @@ test('缓存写入是原子的：rename 失败时正式键上不留半截文件'
   const retried = await ensureWebp(entries[0], cacheDir, options)
   assert.equal(retried.cached, false)
   assert.deepEqual(fs.readdirSync(cacheDir).filter((name) => name.endsWith('.tmp')), [])
+})
+
+test('sharp 懒加载失败：报安装提示并带源文件路径', async () => {
+  const dir = makePublicDir([])
+  const abs = path.join(dir, 'lazy.png')
+  await writePng(abs)
+  const original = setSharpLoader(async () => { throw new Error('Cannot find package "sharp"') })
+  try {
+    await assert.rejects(() => encodeWebp(abs, { quality: 75, effort: 4 }), (error: Error) => {
+      assert.equal(error.message.startsWith('[fusim:webp] 无法加载 sharp（请先 npm i -D sharp）：Cannot find package "sharp"'), true, error.message)
+      assert.equal(error.message.includes(abs), true, error.message)
+      assert.equal(error.cause instanceof Error, true)
+      return true
+    })
+  } finally {
+    setSharpLoader(original)
+  }
+  // 恢复默认加载器后照常能编码
+  const output = await encodeWebp(abs, { quality: 75, effort: 4 })
+  assert.equal((await sharp(output).metadata()).format, 'webp')
 })
 
 async function writePng(abs: string) {
