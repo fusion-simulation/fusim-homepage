@@ -3,7 +3,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { after, test } from 'node:test'
-import { collectImageEntries, rewriteReferences } from './webp.ts'
+import sharp from 'sharp'
+import { cachePathFor, collectImageEntries, encodeWebp, ensureWebp, rewriteReferences } from './webp.ts'
 
 const dirs: string[] = []
 function makePublicDir(files: string[]): string {
@@ -77,4 +78,54 @@ test('已存在的 .webp 扩展名大小写不同也算占用目标', () => {
   const { entries, skipped } = collectImageEntries(makePublicDir(['x/A.PNG', 'x/A.WEBP']))
   assert.deepEqual(entries, [])
   assert.deepEqual(skipped, [{ sourceRel: 'x/A.PNG', reason: 'target-exists' }])
+})
+
+async function writeGif(abs: string, frames: number) {
+  const images = await Promise.all(Array.from({ length: frames }, (_, i) =>
+    sharp({ create: { width: 64, height: 48, channels: 3, background: { r: i * 40, g: 80, b: 160 } } }).png().toBuffer()))
+  const gif = await sharp(images, { join: { animated: true } }).gif().toBuffer()
+  fs.mkdirSync(path.dirname(abs), { recursive: true })
+  fs.writeFileSync(abs, gif)
+}
+
+test('动图转完仍是多帧', async () => {
+  const dir = makePublicDir([])
+  const abs = path.join(dir, 'anim.gif')
+  await writeGif(abs, 3)
+  const out = await encodeWebp(abs, { quality: 75, effort: 4 })
+  const meta = await sharp(out, { animated: true }).metadata()
+  assert.equal(meta.format, 'webp')
+  assert.equal(meta.pages, 3)
+})
+
+test('静图转成单帧 webp', async () => {
+  const dir = makePublicDir([])
+  const abs = path.join(dir, 'still.png')
+  await sharp({ create: { width: 32, height: 32, channels: 3, background: '#123456' } }).png().toFile(abs)
+  const out = await encodeWebp(abs, { quality: 75, effort: 4 })
+  const meta = await sharp(out).metadata()
+  assert.equal(meta.format, 'webp')
+  assert.equal(meta.pages ?? 1, 1)
+})
+
+test('坏图报错带文件路径', async () => {
+  const dir = makePublicDir(['bad.png'])  // 空文件
+  await assert.rejects(() => encodeWebp(path.join(dir, 'bad.png'), { quality: 75, effort: 4 }), (err: Error) => err.message.includes('bad.png'))
+})
+
+test('缓存键随 mtime / 质量变化，命中后不重复编码', async () => {
+  const dir = makePublicDir([])
+  const abs = path.join(dir, 'c.png')
+  await sharp({ create: { width: 16, height: 16, channels: 3, background: '#fff' } }).png().toFile(abs)
+  const { entries } = collectImageEntries(dir)
+  const cacheDir = path.join(dir, 'cache')
+  const options = { quality: 75, effort: 4 }
+  const first = await ensureWebp(entries[0], cacheDir, options)
+  const second = await ensureWebp(entries[0], cacheDir, options)
+  assert.equal(first.cached, false)
+  assert.equal(second.cached, true)
+  const stats = fs.statSync(abs)
+  const other = cachePathFor(cacheDir, entries[0], stats, { quality: 90, effort: 4 })
+  assert.notEqual(cachePathFor(cacheDir, entries[0], stats, options), other)
+  assert.notEqual(cachePathFor(cacheDir, entries[0], { ...stats, mtimeMs: stats.mtimeMs + 1000 }, options), cachePathFor(cacheDir, entries[0], stats, options))
 })

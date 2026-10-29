@@ -1,5 +1,7 @@
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import sharp from 'sharp'
 
 /** 需要转成 WebP 的源图片扩展名（统一小写后比较）。 */
 export const SOURCE_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.gif']
@@ -128,4 +130,59 @@ export function rewriteReferences(code: string, entries: ImageEntry[]): string |
   }
 
   return result === code ? null : result
+}
+
+/** 编码参数：`quality` 为 WebP 质量（1-100），`effort` 为 libwebp 压缩投入（0-6）。 */
+export type EncodeOptions = { quality: number; effort: number }
+
+/**
+ * 把单张源图转成 WebP。
+ *
+ * `metadata().pages > 1` 视为动图，必须显式传 `{ animated: true }` 才会保留所有帧；
+ * 静图不带该选项，避免无用开销。失败时重抛带源文件路径的错误，便于构建期定位。
+ */
+export async function encodeWebp(sourceAbs: string, options: EncodeOptions): Promise<Buffer> {
+  try {
+    const { pages } = await sharp(sourceAbs).metadata()
+    const pipeline = pages !== undefined && pages > 1 ? sharp(sourceAbs, { animated: true }) : sharp(sourceAbs)
+    return await pipeline.webp({ quality: options.quality, effort: options.effort }).toBuffer()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`[fusim:webp] 转码失败 ${sourceAbs}：${message}`)
+  }
+}
+
+/**
+ * 算缓存文件路径。
+ *
+ * 源相对路径决定是哪个文件，`mtimeMs`/`size` 决定字节内容是否变过，
+ * `quality`/`effort` 决定编码结果——任一变化都必须落到不同缓存文件，否则会复用旧字节。
+ */
+export function cachePathFor(
+  cacheDir: string,
+  entry: ImageEntry,
+  stats: { mtimeMs: number; size: number },
+  options: EncodeOptions,
+): string {
+  const key = `${entry.sourceRel}|${stats.mtimeMs}|${stats.size}|q${options.quality}e${options.effort}`
+  return path.join(cacheDir, `${crypto.createHash('sha1').update(key).digest('hex')}.webp`)
+}
+
+/** 命中缓存直接读盘，否则转码后写入缓存目录；`cached` 标记是否走了缓存。 */
+export async function ensureWebp(
+  entry: ImageEntry,
+  cacheDir: string,
+  options: EncodeOptions,
+): Promise<{ data: Buffer; cached: boolean }> {
+  const stats = fs.statSync(entry.sourceAbs)
+  const cachePath = cachePathFor(cacheDir, entry, stats, options)
+
+  if (fs.existsSync(cachePath)) {
+    return { data: fs.readFileSync(cachePath), cached: true }
+  }
+
+  const data = await encodeWebp(entry.sourceAbs, options)
+  fs.mkdirSync(cacheDir, { recursive: true })
+  fs.writeFileSync(cachePath, data)
+  return { data, cached: false }
 }
