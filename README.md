@@ -22,6 +22,7 @@ npm run build      # SPA 构建，产物在 dist/（index.html + 静态资源 + 
 npm run build:ssg  # 可选：预渲染每个路由为独立 HTML（dist/about/index.html 等）
 npm run preview    # 预览构建产物
 npm run lint       # oxlint
+npm test           # vite-plugins 单元测试（node --test）
 ```
 
 > `build` 是默认形态：单页应用（SPA），由 `index.html` 加载 JS 后渲染页面。
@@ -35,6 +36,7 @@ vite.config.ts              # Vite 配置（MDX / Griffel / 论文附件扫描�
 vite-plugins/
   mdx.ts                    # 把 .mdx 编译为 React 组件（frontmatter / GFM / KaTeX）
   publications.ts           # 构建期扫描 public/assets/pub，生成 virtual:publications
+  webp.ts                   # build 时把 public 图片转为 WebP 并改写引用（带磁盘缓存）
 scripts/
   spa-fallback.mjs          # 复制 index.html -> 404.html
   prerender.mjs             # build:ssg 的预渲染脚本
@@ -136,6 +138,25 @@ public/assets/              # 图片、论文 PDF 等静态资源
   改为 frontmatter 的 `wide: true`，由 Griffel 样式实现（效果一致，且不会污染全局）。
 - **代码块**：MDX 代码块会得到 `.prose pre / code` 样式，但不再引入 Prism 语法高亮
   （原站点内容中没有代码块；需要时可加 `rehype-prism-plus`）。
+- **图片转 WebP**：`vite-plugins/webp.ts` 在 build 时把 `public/` 下的图片转成 WebP 并改写全部引用，
+  `dist/` 里只留一份更小的字节。规则如下：
+
+  - **扫描范围**：`public/`（含子目录）里的 `.png` / `.jpg` / `.jpeg` / `.gif`。public 里已有同名 `.webp`、
+    或目标名已被另一张源图占用的源图会跳过并保留原图。
+  - **默认质量**：sharp `webp({ quality: 75, effort: 4 })`，多帧图（metadata 的 `pages > 1`，本站 GIF 均属此类）
+    显式加 `animated: true` 保留全部帧。转换是“无脑”的：变大的也转（如 `ppcfad02bcsupp2.gif` 12 MB → 13 MB）。
+    全站实测 42 MB → 18 MB（-57%）。
+  - **源图去向**：`public/` 里的源图原样保留（仍受 git 跟踪），只有 `dist/` 在拷入 WebP 后删除对应原图。
+  - **缓存**：转码结果按「源路径 + mtime + 大小 + 质量 + effort」为键落在
+    `node_modules/.cache/fusim-webp/`，第二次构建直接命中（实测 8.5 s → 0 s）。想手动重新转码，
+    删掉该目录即可，下次构建自动重转。
+  - **引用改写**：编译后的模块代码与 `index.html` 里的 `/assets/image/x.gif` 会替换为
+    `/assets/image/x.webp`（按文件名边界匹配，保留 query 与 hash）。dev 模式不预转换，
+    请求 `.webp` 时由中间件按需转码并缓存。转换失败的源图不改写引用，`dist/` 保留可用原图。
+  - **不做 AVIF**：sharp/libheif 的动图 AVIF 有「堆叠帧总高 ≤ 16384 px」的上限，本站动图
+    （36 帧 × 450 px 已近顶，5 张 GIF 全部超出）都装不进去，收益抵不过成本，故只做 WebP。
+  - **预渲染不重复转码**：`build:ssg` 的 SSR 趟是独立进程，两趟唯一共享的事实是缓存目录——
+    缓存里已有的就是 client 趟转成功的条目，SSR 趟只按缓存改写、不转码，明细表只打印一次。
 
 ## 部署
 
