@@ -52,3 +52,29 @@ test('没有可改写内容时返回 null', () => {
   assert.equal(rewriteReferences('const a = 1', entries), null)
   assert.equal(rewriteReferences('', []), null)
 })
+
+test('只替换完整文件名，前缀相同的更长引用不被污染', () => {
+  const dir = makePublicDir(['img/a.gif', 'img/a.gif.png'])
+  const { entries } = collectImageEntries(dir)
+  assert.equal(entries.length, 2)
+  const code = 'src="/img/a.gif" x="/img/a.gif.png" y=/img/a.gif2'
+  assert.equal(rewriteReferences(code, entries), 'src="/img/a.webp" x="/img/a.gif.webp" y=/img/a.gif2')
+})
+
+test('引号、括号、query、hash 与行尾等边界仍然可匹配', () => {
+  const { entries } = collectImageEntries(makePublicDir(['img/a.gif']))
+  const code = `src='/img/a.gif' a=url(/img/a.gif?v=1) b="/img/a.gif#t" c="/img/b.gif"\n/img/a.gif`
+  assert.equal(rewriteReferences(code, entries), `src='/img/a.webp' a=url(/img/a.webp?v=1) b="/img/a.webp#t" c="/img/b.gif"\n/img/a.webp`)
+})
+
+test('目录按码点排序，优先级不受本地化排序影响', () => {
+  const { entries, skipped } = collectImageEntries(makePublicDir(['x/a.PNG', 'x/a.gif']))
+  assert.deepEqual(entries.map((e) => e.sourceRel), ['x/a.PNG'])
+  assert.deepEqual(skipped, [{ sourceRel: 'x/a.gif', reason: 'duplicate-target' }])
+})
+
+test('已存在的 .webp 扩展名大小写不同也算占用目标', () => {
+  const { entries, skipped } = collectImageEntries(makePublicDir(['x/A.PNG', 'x/A.WEBP']))
+  assert.deepEqual(entries, [])
+  assert.deepEqual(skipped, [{ sourceRel: 'x/A.PNG', reason: 'target-exists' }])
+})

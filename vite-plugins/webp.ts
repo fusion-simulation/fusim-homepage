@@ -27,12 +27,12 @@ type ScannedFile = {
   abs: string
 }
 
-/** 递归收集目录中的文件（跳过以 `.` 开头的目录与文件），按名字排序保证确定性。 */
+/** 递归收集目录中的文件（跳过以 `.` 开头的目录与文件），按码点排序保证跨机器确定性。 */
 function scanFiles(dirAbs: string, relPrefix = ''): ScannedFile[] {
   const files: ScannedFile[] = []
   const entries = fs
     .readdirSync(dirAbs, { withFileTypes: true })
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue
@@ -50,6 +50,16 @@ function scanFiles(dirAbs: string, relPrefix = ''): ScannedFile[] {
   return files
 }
 
+/** 转义正则元字符，把文件 URL 当字面量匹配。 */
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** 占用表键：大小写不敏感文件系统上 `A.WEBP` 与 `A.webp` 是同一个目标，故统一小写，但输出的目标路径保留原始大小写。 */
+function occupancyKey(rel: string): string {
+  return rel.toLowerCase()
+}
+
 /**
  * 扫描 `public/` 下的图片，为每张源图算出对应的 `.webp` 目标路径。
  *
@@ -64,8 +74,8 @@ export function collectImageEntries(publicDir: string): {
 
   const occupied = new Map<string, 'existing' | 'generated'>()
   for (const file of files) {
-    if (path.posix.extname(file.rel) === WEBP_EXTENSION) {
-      occupied.set(file.rel, 'existing')
+    if (path.posix.extname(file.rel).toLowerCase() === WEBP_EXTENSION) {
+      occupied.set(occupancyKey(file.rel), 'existing')
     }
   }
 
@@ -77,7 +87,7 @@ export function collectImageEntries(publicDir: string): {
     if (!SOURCE_EXTENSIONS.includes(rawExtension.toLowerCase())) continue
 
     const targetRel = file.rel.slice(0, file.rel.length - rawExtension.length) + WEBP_EXTENSION
-    const owner = occupied.get(targetRel)
+    const owner = occupied.get(occupancyKey(targetRel))
 
     if (owner) {
       skipped.push({
@@ -87,7 +97,7 @@ export function collectImageEntries(publicDir: string): {
       continue
     }
 
-    occupied.set(targetRel, 'generated')
+    occupied.set(occupancyKey(targetRel), 'generated')
     entries.push({
       sourceRel: file.rel,
       sourceAbs: file.abs,
@@ -111,7 +121,10 @@ export function rewriteReferences(code: string, entries: ImageEntry[]): string |
 
   let result = code
   for (const entry of entries) {
-    result = result.split(entry.sourceUrl).join(entry.targetUrl)
+    // 文件名边界：`/img/a.gif` 不能命中 `/img/a.gif.png` 或 `/img/a.gif2`，
+    // 但 `?`、`#`、引号、括号与行尾仍应命中
+    const pattern = new RegExp(escapeRegExp(entry.sourceUrl) + '(?![A-Za-z0-9._-])', 'g')
+    result = result.replace(pattern, () => entry.targetUrl)
   }
 
   return result === code ? null : result
