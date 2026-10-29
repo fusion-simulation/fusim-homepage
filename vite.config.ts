@@ -7,7 +7,15 @@ import { webpImages } from './vite-plugins/webp.ts'
 
 // https://vite.dev/config/
 export default defineConfig(({ isSsrBuild }) => ({
-  plugins: [mdx(), react(), griffel(), publications(), webpImages()],
+  plugins: [
+    // mdx() 与 webpImages() 都是 enforce: 'pre'，同组内按数组顺序先 mdx 后 webp：
+    // 编译后的 MDX 会先经本插件改写，再进入 react/griffel/vite:css 的正常管线
+    mdx(),
+    react(),
+    griffel(),
+    publications(),
+    webpImages(),
+  ],
   build: {
     // SSR 构建不需要再次拷贝 public/ 资源
     copyPublicDir: !isSsrBuild,

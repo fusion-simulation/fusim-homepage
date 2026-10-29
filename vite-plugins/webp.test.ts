@@ -305,6 +305,16 @@ test('build 时 transform 改写已转换的引用', async () => {
   assert.equal((plugin.transform as any).call({}, 'const a = 1', '/x.tsx'), null)
 })
 
+test('插件前置（enforce: pre）到 vite:css 之前，CSS 源码里的 url() 也被改写', async () => {
+  // vite:css 会先把 url(/img/a.png) 换成 __VITE_PUBLIC_ASSET__ 占位符；不前置就赶不上了
+  assert.equal(webpImages().enforce, 'pre')
+  const dir = makePublicDir([])
+  await writePng(path.join(dir, 'img/a.png'))
+  const plugin = makePlugin(dir, 'build')
+  await (plugin.buildStart as any).call({})
+  assert.equal((plugin.transform as any).call({}, 'a { background: url(/img/a.png) }', '/src/x.css'), 'a { background: url(/img/a.webp) }')
+})
+
 test('转码失败的图片不参与 build 改写（原图保留）', async () => {
   const dir = makePublicDir(['img/broken.png'])  // 空文件
   const plugin = makePlugin(dir, 'build')

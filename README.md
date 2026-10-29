@@ -153,8 +153,10 @@ public/assets/              # 图片、论文 PDF 等静态资源
     `node_modules/.cache/fusim-webp/`，第二次构建直接命中（实测 8.5 s → 0 s）。想手动重新转码，
     删掉该目录即可，下次构建自动重转。
   - **引用改写**：编译后的模块代码与 `index.html` 里的 `/assets/image/x.gif` 会替换为
-    `/assets/image/x.webp`（按文件名边界匹配，保留 query 与 hash）。从 `public/` 原样拷贝进 `dist/`
-    的文件（例如其中 CSS 的 `url()`）不在改写范围内。dev 模式不预转换，
+    `/assets/image/x.webp`（按 URL 边界匹配，保留 query 与 hash；`%20` 等编码形态与原始字面量都会改写）。
+    以模块方式导入 public 图片（如 `import photo from "/img/a.png"`）不受支持——本项目 public 图片一律以 URL 引用。
+    插件以 `enforce: 'pre'` 跑在 `vite:css` 之前，CSS 源码里的 `url()` 也在改写范围内；从 `public/` 原样拷贝进 `dist/`
+    的文件仍不在改写范围内。dev 模式不预转换，
     请求 `.webp` 时由中间件按需转码并缓存。转换失败的源图不改写引用，`dist/` 保留可用原图。
   - **不做 AVIF**：sharp/libheif 的动图 AVIF 有「堆叠帧总高 ≤ 16384 px」的上限，本站动图
     （36 帧 × 450 px 已近顶，5 张 GIF 全部超出）都装不进去，收益抵不过成本，故只做 WebP。

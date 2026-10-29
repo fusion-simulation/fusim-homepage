@@ -240,6 +240,8 @@ export type WebpOptions = { quality?: number; effort?: number; cacheDir?: string
 /**
  * Vite 插件：build 时把 `public/` 里的图片转成 WebP 并改写全部引用。
  *
+ * - `enforce: 'pre'`：transform 必须赶在 `vite:css` 把 `url(/img/…)` 换成 `__VITE_PUBLIC_ASSET__`
+ *   占位符之前跑；MDX 插件同为 pre 且在 vite.config.ts 的数组里更靠前，编译后的 MDX 仍会先到我们这；
  * - `transform` / `transformIndexHtml` 把代码里的源图 URL 换成 `.webp`（依据 `buildStart` 定好的改写集）；
  * - `buildStart` 扫描并按阶段确定改写集：client 趟只含本趟成功转码的条目，SSR 趟只含缓存目录里
  *   已有文件的条目（两趟构建是独立进程，缓存目录是唯一共享的事实），dev 全量放行，实际字节
@@ -286,6 +288,8 @@ export function webpImages(options: WebpOptions = {}): Plugin {
 
   return {
     name: 'fusim:webp',
+    // 前置到 vite:css 之前：CSS 里的 url() 要在它被换成 __VITE_PUBLIC_ASSET__ 占位符前改写掉
+    enforce: 'pre',
     configResolved(config) {
       publicDir = config.publicDir
       outDir = path.resolve(config.root, config.build.outDir)
