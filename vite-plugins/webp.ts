@@ -252,7 +252,8 @@ export type WebpOptions = { quality?: number; effort?: number; cacheDir?: string
  *   已有文件的条目（两趟构建是独立进程，缓存目录是唯一共享的事实），dev 全量放行，实际字节
  *   由 `configureServer` 中间件按需补上；
  * - `configureServer`（dev）注册中间件：请求命中改写目标且 `public/` 里没有该 `.webp` 时，
- *   走 `ensureWebp` 取缓存或现转后直接回字节；watcher 在源图新增/删除时重扫；
+ *   走 `ensureWebp` 取缓存或现转后直接回字节；watcher 在源图新增/删除时重扫、同步 dev 改写集
+ *   并发整页刷新，实际字节由中间件按需补上；
  * - `closeBundle` 把转好的文件拷进 outDir、删掉原位拷贝的源图并打印报告，单张失败只警告不中断。
  */
 export function webpImages(options: WebpOptions = {}): Plugin {
@@ -281,7 +282,7 @@ export function webpImages(options: WebpOptions = {}): Plugin {
    */
   let rewriteEntries: ImageEntry[] = []
 
-  /** 重新扫描 `public/`；被跳过的源图在这里警告说明原因。 */
+  /** 重新扫描 `public/`；dev（serve）下载重扫还要同步 dev 改写集，脱离 buildStart 的快照。 */
   function refresh(): void {
     const scan = collectImageEntries(publicDir)
     entries = scan.entries
@@ -289,6 +290,8 @@ export function webpImages(options: WebpOptions = {}): Plugin {
       const reason = item.reason === 'target-exists' ? 'public 里已有同名 .webp' : '目标已被同名不同扩展名的源图占用'
       console.warn(`[fusim:webp] 跳过 ${item.sourceRel}：${reason}，保留原图。`)
     }
+    // dev 改写集 = 全部条目，且要与扫描实时同步：否则新增图片永远不被改写、删掉的还能被改写
+    if (command === 'serve') rewriteEntries = entries
   }
 
   return {
@@ -388,9 +391,13 @@ export function webpImages(options: WebpOptions = {}): Plugin {
         }
       })
       // 源图新增/删除时重扫让改写目标跟着变；change 不重扫——缓存键本身含 mtime，
-      // 内容一变缓存必然 miss，请求来时按需重转
+      // 内容一变缓存必然 miss，请求来时按需重转。改写集变了要发整页刷新，
+      // 让页面里的引用重新走 transform
       server.watcher.on('all', (event, file) => {
-        if ((event === 'add' || event === 'unlink') && file.startsWith(publicDir)) refresh()
+        if ((event === 'add' || event === 'unlink') && file.startsWith(publicDir)) {
+          refresh()
+          server.ws.send({ type: 'full-reload' })
+        }
       })
     },
     closeBundle() {

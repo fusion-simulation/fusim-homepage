@@ -211,6 +211,7 @@ async function writePng(abs: string) {
 function makeFakeServer() {
   let handler: (...args: unknown[]) => unknown = () => {}
   const watcherHandlers = new Map<string, (...args: unknown[]) => void>()
+  const wsSent: unknown[] = []
   return {
     get handler() { return handler },
     middlewares: {
@@ -219,6 +220,8 @@ function makeFakeServer() {
     watcher: {
       on(event: string, fn: (...args: unknown[]) => void) { watcherHandlers.set(event, fn) },
     },
+    ws: { send: (message: unknown) => void wsSent.push(message) },
+    get wsSent() { return wsSent },
     notify(event: string, file: string) { watcherHandlers.get('all')?.(event, file) },
   }
 }
@@ -306,6 +309,28 @@ test('dev 中间件：public 已有 .webp 放行、坏图回 500 文本、watche
   server.notify('add', path.join(outside, 'outside.png'))
   await request('/outside.webp')
   assert.deepEqual(nextCalls, ['/next', '/next', '/next'])
+})
+
+test('dev：源图增删后重扫同步 dev 改写集并整页刷新', async () => {
+  const dir = makePublicDir([])
+  await writePng(path.join(dir, 'img/a.png'))
+  const plugin = makePlugin(dir, 'serve')
+  const server = makeFakeServer()
+  ;(plugin.configureServer as any)(server)
+  await (plugin.buildStart as any).call({})
+  assert.equal((plugin.transform as any).call({}, 'src="/img/a.png"', '/x.tsx'), 'src="/img/a.webp"')
+
+  // watcher 走到的重扫路径：新增源图后改写集必须带上它，并通知整页刷新
+  await writePng(path.join(dir, 'img/new.png'))
+  server.notify('add', path.join(dir, 'img/new.png'))
+  assert.equal((plugin.transform as any).call({}, 'src="/img/new.png"', '/x.tsx'), 'src="/img/new.webp"')
+  assert.deepEqual(server.wsSent, [{ type: 'full-reload' }])
+
+  // 删除后同样重扫：改写集收回，再次整页刷新
+  fs.unlinkSync(path.join(dir, 'img/new.png'))
+  server.notify('unlink', path.join(dir, 'img/new.png'))
+  assert.equal((plugin.transform as any).call({}, 'src="/img/new.png"', '/x.tsx'), null)
+  assert.equal(server.wsSent.length, 2)
 })
 
 function makePlugin(publicDir: string, command: 'build' | 'serve', options: { ssr?: boolean; cacheDir?: string } = {}) {
