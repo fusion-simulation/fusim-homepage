@@ -55,7 +55,8 @@
 ### build
 - `buildStart`：并行（并发 4）转换全部候选，产物写入缓存目录；`this.emitFile({ type: 'asset', fileName: 相对 public 的路径, source })`。
 - `closeBundle`：删除 `outDir` 里被替换的原图，打印对照表 `源 → 目标（−xx%）` 与总耗时。
-- SSR 构建（`build:ssg` 的 `--ssr` 一遍，`copyPublicDir: false`）整体跳过。
+- SSR 构建（`build:ssg` 的 `--ssr` 一遍，`copyPublicDir: false`）不转码、不拷贝进 outDir、不打印报告；
+  但仍会改写引用，以缓存目录里已有缓存文件的条目为准（缓存存在 = client 趟转码成功），无缓存的条目保持原图引用。
 
 ### dev
 - `configureServer` 注册中间件：请求路径命中转换表且 public 里不存在该文件时，取缓存或现场转换，返回 `image/webp`。

@@ -18,7 +18,8 @@
 - 只处理 `public/` 下的 png / jpg / jpeg / gif（大小写不敏感），其它文件一律忽略。
 - 引用改写只针对 `public/` 里真实存在的文件，保留 query / hash 后缀。
 - 缓存目录默认 `<root>/node_modules/.cache/fusim-webp/`。
-- SSR 构建（`config.build.ssr` 为真，即 `build:ssg` 的第二遍）整体跳过。
+- SSR 构建（`config.build.ssr` 为真，即 `build:ssg` 的第二遍）不转码、不拷贝进 outDir、不打印报告；
+  但仍按缓存目录里已有的缓存文件改写引用，无缓存的条目保持原图引用。
 - 代码风格跟随仓库：2 空格、无分号、单引号、`import ... from './x.ts'` 带扩展名、中文注释；`tsc -b`（`noUnusedParameters` / `erasableSyntaxOnly`）与 `oxlint` 必须干净。
 - 实现顺序 TDD：每个任务先写失败的测试并确认它失败，再写实现。
 

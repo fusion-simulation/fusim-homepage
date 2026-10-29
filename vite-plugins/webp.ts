@@ -93,9 +93,9 @@ function escapeRegExp(input: string): string {
 }
 
 /** URL 起点边界：引号 / 括号 / 空白 / 赋值 / 冒号 / 串首，防止命中外部 CDN 或其它路径的中段（如 `/other/img/a.png`）。 */
-const URL_START_BOUNDARY: string = `(?<=['"(\\\s=:]|^)`
+const URL_START_BOUNDARY: string = String.raw`(?<=['"(\s=:]|^)`
 /** URL 终点边界：`?` `#` 引号 括号 空白 / 串尾，并保留防前缀碰撞的断言（`/a.gif` 不能命中 `/a.gif2`）。 */
-const URL_END_BOUNDARY: string = `(?=$|[?#'\")\\s])(?![A-Za-z0-9._-])`
+const URL_END_BOUNDARY: string = String.raw`(?=$|[?#'\")\s])(?![A-Za-z0-9._-])`
 
 /** 同一张源图要匹配的 URL 形态：原始字面量 + encodeURI 形态（浏览器请求带空格等字符的文件用的就是编码形态）。 */
 function sourceUrlVariants(entry: ImageEntry): Array<{ source: string, target: string }> {
@@ -249,7 +249,7 @@ export async function ensureWebp(
   return { data, cached: false }
 }
 
-/** 编码缺省参数：quality / effort 与 sharp 默认值一致，构建间也保持稳定。 */
+/** 编码缺省参数：本项目的自选默认，构建间保持稳定（sharp 自身的 WebP quality 默认是 80，75 是有意的选择）。 */
 const DEFAULTS: EncodeOptions = { quality: 75, effort: 4 }
 
 /** 每批并发转码的张数：动图动辄 43 MB，控制同时驻留内存的规模。 */
