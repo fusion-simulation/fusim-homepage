@@ -1,0 +1,36 @@
+{
+  "name": "fusim-homepage",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && node scripts/spa-fallback.mjs",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "build:ssg": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs"
+  },
+  "dependencies": {
+    "@griffel/react": "^1.7.8",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "wouter": "^3.13.0"
+  },
+  "devDependencies": {
+    "@griffel/vite-plugin": "^1.0.1",
+    "@mdx-js/mdx": "^3.1.1",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "katex": "^0.19.1",
+    "oxlint": "^1.89.0",
+    "rehype-katex": "^7.0.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-mdx-frontmatter": "^6.0.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.5"
+  }
+}
