@@ -172,9 +172,14 @@ async function writePng(abs: string) {
   await sharp({ create: { width: 16, height: 16, channels: 3, background: '#abcdef' } }).png().toFile(abs)
 }
 
-function makePlugin(publicDir: string, command: 'build' | 'serve') {
-  const plugin = webpImages()
-  ;(plugin.configResolved as any)({ root: publicDir, publicDir, command, build: { outDir: path.join(publicDir, 'dist'), ssr: false } })
+function makePlugin(publicDir: string, command: 'build' | 'serve', options: { ssr?: boolean; cacheDir?: string } = {}) {
+  const plugin = webpImages({ cacheDir: options.cacheDir })
+  ;(plugin.configResolved as any)({
+    root: publicDir,
+    publicDir,
+    command,
+    build: { outDir: path.join(publicDir, 'dist'), ssr: options.ssr ?? false },
+  })
   return plugin
 }
 
@@ -196,4 +201,88 @@ test('转码失败的图片不参与 build 改写（原图保留）', async () =
   try { await (plugin.buildStart as any).call({}) } finally { console.warn = origWarn }
   assert.equal((plugin.transform as any).call({}, 'src="/img/broken.png"', '/x.tsx'), null)
   assert.equal(warnings.length, 1)
+})
+
+test('SSR 独立进程只改写缓存里已有的条目，client 趟失败的保持原引用', async () => {
+  const dir = makePublicDir(['broken.png'])  // 空文件
+  await writePng(path.join(dir, 'a.png'))
+  // build:ssg 的两趟是不同进程、插件状态互不相通，共享的只有 cacheDir，故显式传入
+  const cacheDir = path.join(dir, 'cache')
+  const warnings: unknown[][] = []
+  const origWarn = console.warn
+  console.warn = (...args: unknown[]) => void warnings.push(args)
+  // 第一趟 · client：a.png 转码成功写入缓存，broken.png 失败
+  const client = makePlugin(dir, 'build', { cacheDir })
+  try { await (client.buildStart as any).call({}) } finally { console.warn = origWarn }
+  assert.equal(warnings.length, 1)
+  // 第二趟 · SSR：新进程 failed 为空，只认缓存目录里存在的事实
+  const ssr = makePlugin(dir, 'build', { cacheDir, ssr: true })
+  await (ssr.buildStart as any).call({})
+  assert.equal((ssr.transform as any).call({}, 'src="/a.png"', '/x.tsx'), 'src="/a.webp"')
+  assert.equal((ssr.transform as any).call({}, 'src="/broken.png"', '/x.tsx'), null)
+})
+
+test('同一实例连续两轮构建，状态重置后报告张数不累加', async () => {
+  const dir = makePublicDir([])
+  await writePng(path.join(dir, 'img/a.png'))
+  const plugin = makePlugin(dir, 'build')
+  const logs: unknown[][] = []
+  const origLog = console.log
+  console.log = (...args: unknown[]) => void logs.push(args)
+  try {
+    await (plugin.buildStart as any).call({})
+    ;(plugin.closeBundle as any).call({})
+    await (plugin.buildStart as any).call({})
+    ;(plugin.closeBundle as any).call({})
+  } finally { console.log = origLog }
+  const reportLines = logs.map((args) => String(args[0]))
+  const counts = reportLines.filter((line) => line.includes('张'))
+  assert.equal(counts.length, 2)
+  assert.equal(counts.every((line) => line.includes('1 张')), true)
+  assert.equal(reportLines.some((line) => line.includes('2 张')), false)
+})
+
+test('closeBundle 单张拷贝失败只警告并继续，报告照常打印且不删原图', async () => {
+  const dir = makePublicDir([])
+  await writePng(path.join(dir, 'img/a.png'))
+  await writePng(path.join(dir, 'img/b.png'))
+  const plugin = makePlugin(dir, 'build')
+  await (plugin.buildStart as any).call({})
+  // 模拟 copyPublicDir 先把原图拷进 outDir
+  fs.mkdirSync(path.join(dir, 'dist/img'), { recursive: true })
+  fs.copyFileSync(path.join(dir, 'img/a.png'), path.join(dir, 'dist/img/a.png'))
+  fs.copyFileSync(path.join(dir, 'img/b.png'), path.join(dir, 'dist/img/b.png'))
+
+  // 第一张拷贝失败，第二张照常拷贝
+  const realCopy = fs.copyFileSync.bind(fs)
+  let copies = 0
+  const copy = mock.method(fs, 'copyFileSync', (src: fs.PathLike, dest: fs.PathLike) => {
+    copies++
+    if (copies === 1) throw new Error('copy boom')
+    realCopy(src, dest)
+  })
+  const warnings: unknown[][] = []
+  const logs: unknown[][] = []
+  const origWarn = console.warn
+  const origLog = console.log
+  console.warn = (...args: unknown[]) => void warnings.push(args)
+  console.log = (...args: unknown[]) => void logs.push(args)
+  try {
+    ;(plugin.closeBundle as any).call({})
+  } finally {
+    copy.mock.restore()
+    console.warn = origWarn
+    console.log = origLog
+  }
+  assert.equal(warnings.length, 1)
+  assert.equal(String(warnings[0][0]).includes('拷贝失败'), true)
+  assert.equal(String(warnings[0][0]).includes('img/a.png'), true)
+  // 拷贝失败的原图不删；后续条目的 .webp 照常落盘且原图照删
+  assert.equal(fs.existsSync(path.join(dir, 'dist/img/a.png')), true)
+  assert.equal(fs.existsSync(path.join(dir, 'dist/img/a.webp')), false)
+  assert.equal(fs.existsSync(path.join(dir, 'dist/img/b.webp')), true)
+  assert.equal(fs.existsSync(path.join(dir, 'dist/img/b.png')), false)
+  // 报告不被吞掉
+  const reportLines = logs.map((args) => String(args[0]))
+  assert.equal(reportLines.some((line) => line.includes('2 张')), true)
 })

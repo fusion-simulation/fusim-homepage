@@ -224,11 +224,10 @@ export type WebpOptions = { quality?: number; effort?: number; cacheDir?: string
 /**
  * Vite 插件：build 时把 `public/` 里的图片转成 WebP 并改写全部引用。
  *
- * - `transform` / `transformIndexHtml` 把代码里的源图 URL 换成 `.webp`；
- * - `buildStart` 扫描并转码（命中磁盘缓存几乎零开销），SSR 构建只复用改写；
- * - `closeBundle` 把转好的文件拷进 outDir、删掉原位拷贝的源图并打印报告。
- *
- * dev 端的扫描 / 中间件由后续任务接线，这里不做任何事。
+ * - `transform` / `transformIndexHtml` 把代码里的源图 URL 换成 `.webp`（依据 `buildStart` 定好的改写集）；
+ * - `buildStart` 扫描并按阶段确定改写集：client 趟只含本趟成功转码的条目，SSR 趟只含缓存目录里
+ *   已有文件的条目（两趟构建是独立进程，缓存目录是唯一共享的事实），dev 全量放行（按需转换在后续任务接线）；
+ * - `closeBundle` 把转好的文件拷进 outDir、删掉原位拷贝的源图并打印报告，单张失败只警告不中断。
  */
 export function webpImages(options: WebpOptions = {}): Plugin {
   const encodeOptions: EncodeOptions = {
@@ -242,14 +241,19 @@ export function webpImages(options: WebpOptions = {}): Plugin {
   let cacheDir = ''
   let isSsr = false
 
-  /** 扫描结果：永不删；改写与转码都从这里取。 */
+  /** 扫描结果：永不删，每次 buildStart 都重扫；转码与 SSR/dev 的改写集都从这里取。 */
   let entries: ImageEntry[] = []
-  /** 成功转码的项。 */
+  /** 本轮成功转码的项，每次 buildStart 清空：--watch 反复构建时不累加旧结果。 */
   let converted: Converted[] = []
-  /** 转码失败的源图：build 不改写它们（dist 保留原图），dev 无预转换不受影响。 */
+  /** 本轮转码失败的源图（sourceRel），每轮 buildStart 清空、转码成功即除名，只作记录与告警定位。 */
   let failed = new Set<string>()
-  /** 转码总耗时（含缓存读写），closeBundle 报告用。 */
+  /** 本轮转码总耗时（含缓存读写），closeBundle 报告用，每轮 buildStart 清零。 */
   let conversionMs = 0
+  /**
+   * 改写集合：`buildStart` 按（command × isSsr）算一次，`transform` / `transformIndexHtml` 只读这份。
+   * client 趟 = 本趟成功转码（含缓存命中）的条目；SSR 趟 = 缓存文件已存在的条目；dev = 全部条目。
+   */
+  let rewriteEntries: ImageEntry[] = []
 
   /** 重新扫描 `public/`；被跳过的源图在这里警告说明原因。 */
   function refresh(): void {
@@ -259,11 +263,6 @@ export function webpImages(options: WebpOptions = {}): Plugin {
       const reason = item.reason === 'target-exists' ? 'public 里已有同名 .webp' : '目标已被同名不同扩展名的源图占用'
       console.warn(`[fusim:webp] 跳过 ${item.sourceRel}：${reason}，保留原图。`)
     }
-  }
-
-  /** 参与改写的图片集：dev 无预转换，全部照改；build 只改转码成功过的（失败项改了会 404）。 */
-  function rewriteSet(): ImageEntry[] {
-    return command === 'build' ? entries.filter((entry) => !failed.has(entry.sourceRel)) : entries
   }
 
   return {
@@ -277,11 +276,26 @@ export function webpImages(options: WebpOptions = {}): Plugin {
       cacheDir = options.cacheDir ?? path.join(config.root, 'node_modules/.cache/fusim-webp')
     },
     async buildStart() {
-      // dev 冷启动不做事；dev 的扫描由 configureServer 接线（后续任务）
-      if (command !== 'build') return
       refresh()
-      // SSR 构建只复用改写（build:ssg 的预渲染页面也要引用 .webp），不转换、不拷贝、不删原图
-      if (isSsr) return
+      // 每轮构建开始先清空上一轮状态：--watch 下同一实例会反复触发，不能累加旧结果
+      converted = []
+      failed = new Set<string>()
+      conversionMs = 0
+
+      if (command !== 'build') {
+        // dev/serve：没有预转换，dev 会按需转换（中间件由后续任务接线），全部条目放行改写
+        rewriteEntries = entries
+        return
+      }
+
+      if (isSsr) {
+        // SSR 构建是独立进程，本趟不转码（converted 恒为空）；两趟构建唯一共享的事实是缓存目录，
+        // 缓存文件存在即说明 client 趟转码成功——失败条目的缓存键带着不同的 mtime/size，自然落空。
+        // 这样 client 趟保留的原图在预渲染页里保持原引用，不会 404
+        rewriteEntries = entries.filter((entry) =>
+          fs.existsSync(cachePathFor(cacheDir, entry, fs.statSync(entry.sourceAbs), encodeOptions)))
+        return
+      }
 
       const startedAt = Date.now()
       for (let index = 0; index < entries.length; index += BATCH_SIZE) {
@@ -295,6 +309,8 @@ export function webpImages(options: WebpOptions = {}): Plugin {
               sourceBytes: stats.size,
               outputBytes: data.length,
             })
+            // 转码成功就从 failed 除名：防同轮先败后成或上一轮残留影响判断
+            failed.delete(entry.sourceRel)
           } catch (error) {
             failed.add(entry.sourceRel)
             console.warn(error instanceof Error ? error.message : String(error))
@@ -302,24 +318,39 @@ export function webpImages(options: WebpOptions = {}): Plugin {
         }))
       }
       conversionMs = Date.now() - startedAt
+      // 改写集 = 本趟成功转码（含缓存命中）的条目，只从这里取，不经 entries；
+      // 失败条目保持原引用，dist 保留可用原图，SSR 趟也能靠「缓存不存在」还原同一事实
+      rewriteEntries = converted.map((item) => item.entry)
     },
     transform(code: string) {
-      return rewriteReferences(code, rewriteSet())
+      return rewriteReferences(code, rewriteEntries)
     },
     transformIndexHtml(html: string) {
-      return rewriteReferences(html, rewriteSet()) ?? undefined
+      return rewriteReferences(html, rewriteEntries) ?? undefined
     },
     closeBundle() {
       if (command !== 'build' || isSsr) return
 
       for (const item of converted) {
-        // public/ 资源不进打包图，直接把转好的文件落盘到 outDir
-        const targetAbs = path.join(outDir, item.entry.targetRel)
-        fs.mkdirSync(path.dirname(targetAbs), { recursive: true })
-        fs.copyFileSync(item.cachePath, targetAbs)
-        // 删掉 copyPublicDir 拷进来的源图，outDir 里只留 .webp
-        const sourceAbs = path.join(outDir, item.entry.sourceRel)
-        if (fs.existsSync(sourceAbs)) fs.unlinkSync(sourceAbs)
+        // 单张失败只警告并继续，不能拖垮其余文件，更不能吞掉报告
+        try {
+          // public/ 资源不进打包图，直接把转好的文件落盘到 outDir
+          const targetAbs = path.join(outDir, item.entry.targetRel)
+          fs.mkdirSync(path.dirname(targetAbs), { recursive: true })
+          fs.copyFileSync(item.cachePath, targetAbs)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.warn(`[fusim:webp] 拷贝失败 ${item.entry.sourceRel}：${message}，保留原图备查。`)
+          continue
+        }
+        // 拷贝成功的才删掉 copyPublicDir 拷进来的源图；删除失败同样只警告，outDir 里多留一份原图无害
+        try {
+          const sourceAbs = path.join(outDir, item.entry.sourceRel)
+          if (fs.existsSync(sourceAbs)) fs.unlinkSync(sourceAbs)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.warn(`[fusim:webp] 删除原图失败 ${item.entry.sourceRel}：${message}`)
+        }
       }
 
       if (converted.length === 0) return
