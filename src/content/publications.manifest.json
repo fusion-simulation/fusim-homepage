@@ -1,0 +1,12 @@
+{
+  "attachments": [
+    { "path": "2026/1/data/pe_gh052025x01_dump.40000", "size": 450698528 },
+    { "path": "2026/1/data/pe_gh052025x01_dump.46500", "size": 450698528 },
+    { "path": "2026/1/data/pe_gh052025x01_dump.50200", "size": 450698528 },
+    { "path": "2026/1/data/pe_gh052025x01_energy.dat", "size": 67996560 },
+    { "path": "2026/1/data/pe_gh092825x01_dump.40000", "size": 450698528 },
+    { "path": "2026/1/data/pe_gh092825x01_dump.47000", "size": 450698528 },
+    { "path": "2026/1/data/pe_gh092825x01_dump.50400", "size": 450698528 },
+    { "path": "2026/1/data/pe_gh092825x01_energy.dat", "size": 67819880 }
+  ]
+}

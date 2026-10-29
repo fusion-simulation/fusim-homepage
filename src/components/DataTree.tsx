@@ -27,14 +27,16 @@ export function DataTree({ nodes, variant = 'site' }: DataTreeProps) {
             >
               📄 {node.name}
             </a>
-            <span
-              className={mergeClasses(
-                c.size,
-                variant === 'attachment' && c.sizeOnAttachmentPage,
-              )}
-            >
-              ({node.sizeStr})
-            </span>
+            {node.sizeStr ? (
+              <span
+                className={mergeClasses(
+                  c.size,
+                  variant === 'attachment' && c.sizeOnAttachmentPage,
+                )}
+              >
+                ({node.sizeStr})
+              </span>
+            ) : null}
           </li>
         ) : (
           <li key={node.url} className={c.item}>
