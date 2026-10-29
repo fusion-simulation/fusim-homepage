@@ -106,6 +106,9 @@ public/assets/              # 图片、论文 PDF 等静态资源
 
   所以请**先放文件、再构建**（`npm run dev` 时新增/删除附件会自动刷新）。
 
+  大数据附件（`*.dat`、`*_dump.*`、`*_energy.*` 等）由 Git LFS 管理（见 `.gitattributes`）：
+  clone 后执行 `git lfs pull` 获取；首次提交前确认已执行 `git lfs install`。
+
 - **页头 / 页脚 / 备案号 / 社会报导**：`src/content/site.ts`。
 
 ## 实现说明

@@ -25,3 +25,6 @@ dist-ssr
 
 # 原站参考仓库（自带 .git，独立 clone）
 fusim-homepage/
+
+# 附件下载日志（本地临时文件）
+.pub-lfs-download.log
