@@ -75,8 +75,11 @@ function scanFiles(dirAbs: string, relPrefix = ''): ScannedFile[] {
     const abs = path.join(dirAbs, entry.name)
 
     if (entry.isDirectory()) {
-      files.push(...scanFiles(abs, rel))
-    } else if (entry.isFile()) {
+      // 软链到目录的不跟随，避免把 public 外（乃至成环）的目录树卷进来
+      if (!entry.isSymbolicLink()) files.push(...scanFiles(abs, rel))
+    } else if (entry.isFile() || entry.isSymbolicLink()) {
+      // 软链文件也参与占用：public 里软链出的 a.webp 同样是用户要发布的文件，
+      // isFile() 对软链返回 false，漏掉会把同名源图转出来覆盖它
       files.push({ rel, abs })
     }
   }

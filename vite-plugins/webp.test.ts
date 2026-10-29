@@ -50,6 +50,25 @@ test('public 里已有的 .webp 使同源图片被跳过', () => {
   assert.deepEqual(skipped, [{ sourceRel: 'x/a.png', reason: 'target-exists' }])
 })
 
+test('软链接 .webp 也占目标（target-exists），软链目录不跟随', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fusim-webp-'))
+  dirs.push(dir)
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'fusim-webp-out-'))
+  dirs.push(outside)
+  fs.writeFileSync(path.join(outside, 'real.txt'), '')
+  fs.writeFileSync(path.join(outside, 'z.png'), '')
+  fs.mkdirSync(path.join(dir, 'x'))
+  // 软链到 public 外的 a.webp 同样是用户要发布的文件：a.png 不该转出同名目标然后把它覆盖
+  fs.symlinkSync(path.join(outside, 'real.txt'), path.join(dir, 'x/a.webp'))
+  fs.writeFileSync(path.join(dir, 'x/a.png'), '')
+  // 指向目录的软链不跟随：dirlink/z.png 不能被卷进扫描
+  fs.symlinkSync(outside, path.join(dir, 'dirlink'))
+
+  const { entries, skipped } = collectImageEntries(dir)
+  assert.deepEqual(entries, [])
+  assert.deepEqual(skipped, [{ sourceRel: 'x/a.png', reason: 'target-exists' }])
+})
+
 test('改写引用且保留 query 与 hash', () => {
   const dir = makePublicDir(['img/a.gif'])
   const { entries } = collectImageEntries(dir)
