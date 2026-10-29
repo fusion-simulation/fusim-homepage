@@ -148,7 +148,7 @@ export async function encodeWebp(sourceAbs: string, options: EncodeOptions): Pro
     return await pipeline.webp({ quality: options.quality, effort: options.effort }).toBuffer()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`[fusim:webp] 转码失败 ${sourceAbs}：${message}`)
+    throw new Error(`[fusim:webp] 转码失败 ${sourceAbs}：${message}`, { cause: error })
   }
 }
 
@@ -183,6 +183,9 @@ export async function ensureWebp(
 
   const data = await encodeWebp(entry.sourceAbs, options)
   fs.mkdirSync(cacheDir, { recursive: true })
-  fs.writeFileSync(cachePath, data)
+  // 先写临时文件再原子重命名：中途失败只留下无人读取的 `.tmp`，正式键上要么是完整文件要么不存在
+  const tmpPath = `${cachePath}.tmp`
+  fs.writeFileSync(tmpPath, data)
+  fs.renameSync(tmpPath, cachePath)
   return { data, cached: false }
 }

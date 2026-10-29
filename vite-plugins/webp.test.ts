@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { after, test } from 'node:test'
+import { after, mock, test } from 'node:test'
 import sharp from 'sharp'
 import { cachePathFor, collectImageEntries, encodeWebp, ensureWebp, rewriteReferences } from './webp.ts'
 
@@ -108,12 +108,17 @@ test('静图转成单帧 webp', async () => {
   assert.equal(meta.pages ?? 1, 1)
 })
 
-test('坏图报错带文件路径', async () => {
+test('坏图报错带文件路径且保留原始错误', async () => {
   const dir = makePublicDir(['bad.png'])  // 空文件
-  await assert.rejects(() => encodeWebp(path.join(dir, 'bad.png'), { quality: 75, effort: 4 }), (err: Error) => err.message.includes('bad.png'))
+  const abs = path.join(dir, 'bad.png')
+  await assert.rejects(() => encodeWebp(abs, { quality: 75, effort: 4 }), (err: Error) => {
+    assert.equal(err.message.includes(abs), true)
+    assert.equal(err.cause instanceof Error, true)
+    return true
+  })
 })
 
-test('缓存键随 mtime / 质量变化，命中后不重复编码', async () => {
+test('缓存键随 mtime / size / 质量 / effort 变化，命中后不重复编码', async () => {
   const dir = makePublicDir([])
   const abs = path.join(dir, 'c.png')
   await sharp({ create: { width: 16, height: 16, channels: 3, background: '#fff' } }).png().toFile(abs)
@@ -128,4 +133,29 @@ test('缓存键随 mtime / 质量变化，命中后不重复编码', async () =>
   const other = cachePathFor(cacheDir, entries[0], stats, { quality: 90, effort: 4 })
   assert.notEqual(cachePathFor(cacheDir, entries[0], stats, options), other)
   assert.notEqual(cachePathFor(cacheDir, entries[0], { ...stats, mtimeMs: stats.mtimeMs + 1000 }, options), cachePathFor(cacheDir, entries[0], stats, options))
+  assert.notEqual(cachePathFor(cacheDir, entries[0], stats, { ...options, effort: 5 }), cachePathFor(cacheDir, entries[0], stats, options))
+  assert.notEqual(cachePathFor(cacheDir, entries[0], { ...stats, size: stats.size + 1 }, options), cachePathFor(cacheDir, entries[0], stats, options))
+})
+
+test('缓存写入是原子的：rename 失败时正式键上不留半截文件', async () => {
+  const dir = makePublicDir([])
+  const abs = path.join(dir, 'atomic.png')
+  await sharp({ create: { width: 16, height: 16, channels: 3, background: '#abcdef' } }).png().toFile(abs)
+  const { entries } = collectImageEntries(dir)
+  const cacheDir = path.join(dir, 'cache')
+  const options = { quality: 75, effort: 4 }
+  const cachePath = cachePathFor(cacheDir, entries[0], fs.statSync(abs), options)
+
+  const rename = mock.method(fs, 'renameSync', () => { throw new Error('rename boom') })
+  try {
+    await assert.rejects(() => ensureWebp(entries[0], cacheDir, options), /rename boom/)
+  } finally {
+    rename.mock.restore()
+  }
+  assert.equal(fs.existsSync(cachePath), false)
+
+  // 恢复后重跑应正常落盘，且不残留临时文件
+  const retried = await ensureWebp(entries[0], cacheDir, options)
+  assert.equal(retried.cached, false)
+  assert.deepEqual(fs.readdirSync(cacheDir).filter((name) => name.endsWith('.tmp')), [])
 })
