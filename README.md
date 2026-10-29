@@ -106,8 +106,11 @@ public/assets/              # 图片、论文 PDF 等静态资源
 
   所以请**先放文件、再构建**（`npm run dev` 时新增/删除附件会自动刷新）。
 
-  大数据附件（`*.dat`、`*_dump.*`、`*_energy.*` 等）由 Git LFS 管理（见 `.gitattributes`）：
-  clone 后执行 `git lfs pull` 获取；首次提交前确认已执行 `git lfs install`。
+  论文附件中的大数据文件（`*.dat`、`*_dump.*`、`*_energy.*` 等）**不入库**（见 `.gitignore`），
+  部署时单独上传到静态服务器的 `/assets/pub/...` 即可。
+
+  > 附件列表与目录页是**构建期扫描本地文件**生成的：如果构建时 `public/assets/pub` 下没有这些文件，
+  > 页面上也不会列出它们（文件本身仍可通过直链访问）。
 
 - **页头 / 页脚 / 备案号 / 社会报导**：`src/content/site.ts`。
 
@@ -131,5 +134,6 @@ SPA 需要把未命中的路径回退到 `index.html`，构建脚本已生成 `d
 - GitHub Pages：直接使用 `dist/`（404 回退生效）；
 - nginx：`try_files $uri $uri/ /index.html;`
 - 对象存储 / CDN：把 404 文档指向 `404.html`。
+- 论文附件中的大数据文件（dump / energy 等）不随构建产物发布，需单独上传到静态服务器的 `/assets/pub/...`。
 
 若不确定托管平台是否支持回退，可使用 `npm run build:ssg` 生成真实的多页面 HTML。

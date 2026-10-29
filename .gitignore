@@ -26,5 +26,13 @@ dist-ssr
 # 原站参考仓库（自带 .git，独立 clone）
 fusim-homepage/
 
-# 附件下载日志（本地临时文件）
-.pub-lfs-download.log
+# 论文附件中的大数据文件：不入库，部署时单独上传到静态服务器
+public/assets/pub/**/*.dat
+public/assets/pub/**/*.40000
+public/assets/pub/**/*.46500
+public/assets/pub/**/*.47000
+public/assets/pub/**/*.50200
+public/assets/pub/**/*.50400
+public/assets/pub/**/*_dump.*
+public/assets/pub/**/*_energy.*
+public/assets/pub/**/*.zip
