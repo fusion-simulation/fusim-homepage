@@ -58,6 +58,21 @@ function escapeRegExp(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+/** URL 起点边界：引号 / 括号 / 空白 / 赋值 / 冒号 / 串首，防止命中外部 CDN 或其它路径的中段（如 `/other/img/a.png`）。 */
+const URL_START_BOUNDARY: string = `(?<=['"(\\\s=:]|^)`
+/** URL 终点边界：`?` `#` 引号 括号 空白 / 串尾，并保留防前缀碰撞的断言（`/a.gif` 不能命中 `/a.gif2`）。 */
+const URL_END_BOUNDARY: string = `(?=$|[?#'\")\\s])(?![A-Za-z0-9._-])`
+
+/** 同一张源图要匹配的 URL 形态：原始字面量 + encodeURI 形态（浏览器请求带空格等字符的文件用的就是编码形态）。 */
+function sourceUrlVariants(entry: ImageEntry): Array<{ source: string, target: string }> {
+  const variants = [{ source: entry.sourceUrl, target: entry.targetUrl }]
+  const encodedSource = encodeURI(entry.sourceUrl)
+  if (encodedSource !== entry.sourceUrl) {
+    variants.push({ source: encodedSource, target: encodeURI(entry.targetUrl) })
+  }
+  return variants
+}
+
 /** 占用表键：大小写不敏感文件系统上 `A.WEBP` 与 `A.webp` 是同一个目标，故统一小写，但输出的目标路径保留原始大小写。 */
 function occupancyKey(rel: string): string {
   return rel.toLowerCase()
@@ -124,10 +139,11 @@ export function rewriteReferences(code: string, entries: ImageEntry[]): string |
 
   let result = code
   for (const entry of entries) {
-    // 文件名边界：`/img/a.gif` 不能命中 `/img/a.gif.png` 或 `/img/a.gif2`，
-    // 但 `?`、`#`、引号、括号与行尾仍应命中
-    const pattern = new RegExp(escapeRegExp(entry.sourceUrl) + '(?![A-Za-z0-9._-])', 'g')
-    result = result.replace(pattern, () => entry.targetUrl)
+    for (const variant of sourceUrlVariants(entry)) {
+      // 起点 / 终点都要落在 URL 边界上：`https://cdn…/img/a.png`、`/other/img/a.png`、裸 `img/a.png` 都不是本站引用
+      const pattern = new RegExp(URL_START_BOUNDARY + escapeRegExp(variant.source) + URL_END_BOUNDARY, 'g')
+      result = result.replace(pattern, () => variant.target)
+    }
   }
 
   return result === code ? null : result

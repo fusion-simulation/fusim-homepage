@@ -61,6 +61,18 @@ test('没有可改写内容时返回 null', () => {
   assert.equal(rewriteReferences('', []), null)
 })
 
+test('URL 边界：外部 URL、其它路径与裸文件名不改写', () => {
+  const { entries } = collectImageEntries(makePublicDir(['img/a.png']))
+  const code = 'a="https://cdn.example/img/a.png" b="/other/img/a.png" c=img/a.png'
+  assert.equal(rewriteReferences(code, entries), null)
+})
+
+test('percent-encoded 形态与原始字面量都改写，保留 query 与 hash', () => {
+  const { entries } = collectImageEntries(makePublicDir(['x/space photo.png']))
+  assert.equal(rewriteReferences('href="/x/space%20photo.png?v=2#frag"', entries), 'href="/x/space%20photo.webp?v=2#frag"')
+  assert.equal(rewriteReferences('href="/x/space photo.png"', entries), 'href="/x/space photo.webp"')
+})
+
 test('只替换完整文件名，前缀相同的更长引用不被污染', () => {
   const dir = makePublicDir(['img/a.gif', 'img/a.gif.png'])
   const { entries } = collectImageEntries(dir)
