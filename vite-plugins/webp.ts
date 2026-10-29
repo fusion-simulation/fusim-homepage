@@ -226,7 +226,10 @@ export type WebpOptions = { quality?: number; effort?: number; cacheDir?: string
  *
  * - `transform` / `transformIndexHtml` 把代码里的源图 URL 换成 `.webp`（依据 `buildStart` 定好的改写集）；
  * - `buildStart` 扫描并按阶段确定改写集：client 趟只含本趟成功转码的条目，SSR 趟只含缓存目录里
- *   已有文件的条目（两趟构建是独立进程，缓存目录是唯一共享的事实），dev 全量放行（按需转换在后续任务接线）；
+ *   已有文件的条目（两趟构建是独立进程，缓存目录是唯一共享的事实），dev 全量放行，实际字节
+ *   由 `configureServer` 中间件按需补上；
+ * - `configureServer`（dev）注册中间件：请求命中改写目标且 `public/` 里没有该 `.webp` 时，
+ *   走 `ensureWebp` 取缓存或现转后直接回字节；watcher 在源图新增/删除时重扫；
  * - `closeBundle` 把转好的文件拷进 outDir、删掉原位拷贝的源图并打印报告，单张失败只警告不中断。
  */
 export function webpImages(options: WebpOptions = {}): Plugin {
@@ -283,7 +286,7 @@ export function webpImages(options: WebpOptions = {}): Plugin {
       conversionMs = 0
 
       if (command !== 'build') {
-        // dev/serve：没有预转换，dev 会按需转换（中间件由后续任务接线），全部条目放行改写
+        // dev/serve：没有预转换，按需转码在 `configureServer` 中间件里做，全部条目放行改写
         rewriteEntries = entries
         return
       }
@@ -327,6 +330,43 @@ export function webpImages(options: WebpOptions = {}): Plugin {
     },
     transformIndexHtml(html: string) {
       return rewriteReferences(html, rewriteEntries) ?? undefined
+    },
+    configureServer(server) {
+      refresh()
+      // 直接 use（不返回后置函数）才会排在 Vite 内部静态服务之前——public 里没有 .webp 文件，
+      // 排在后面的话请求先被静态服务 404，永远轮不到这里
+      server.middlewares.use(async (req, res, next) => {
+        let pathname = ''
+        try {
+          // 只按 pathname 查找，query / hash 与改写规则无关；req.url 可能是 `*` 等非法形式，解析失败交回后续中间件
+          pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://localhost').pathname)
+        } catch {
+          return next()
+        }
+        const entry = entries.find((item) => item.targetUrl === pathname)
+        // 未命中改写目标，或 public 里已有同名 .webp（用户自己放的，插件不接管），按原样继续走静态服务
+        if (!entry || fs.existsSync(entry.targetAbs)) return next()
+
+        try {
+          const { data } = await ensureWebp(entry, cacheDir, encodeOptions)
+          res.setHeader('Content-Type', 'image/webp')
+          res.setHeader('Content-Length', data.length)
+          res.setHeader('Cache-Control', 'no-cache')
+          res.end(data)
+        } catch (error) {
+          // 转码失败不能把异常抛出中间件：connect 不会接住异步抛错，会让 dev server 整个崩掉，
+          // 只回 500 文本把原因带出来即可。
+          const message = error instanceof Error ? error.message : String(error)
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end(message.startsWith('[fusim:webp]') ? message : `[fusim:webp] ${message}`)
+        }
+      })
+      // 源图新增/删除时重扫让改写目标跟着变；change 不重扫——缓存键本身含 mtime，
+      // 内容一变缓存必然 miss，请求来时按需重转
+      server.watcher.on('all', (event, file) => {
+        if ((event === 'add' || event === 'unlink') && file.startsWith(publicDir)) refresh()
+      })
     },
     closeBundle() {
       if (command !== 'build' || isSsr) return

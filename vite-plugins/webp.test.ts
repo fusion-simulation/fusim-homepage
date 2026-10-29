@@ -172,6 +172,107 @@ async function writePng(abs: string) {
   await sharp({ create: { width: 16, height: 16, channels: 3, background: '#abcdef' } }).png().toFile(abs)
 }
 
+/// dev 中间件测试：用假 server 对象捕获 configureServer 里注册的处理器，不起真实 HTTP 服务
+function makeFakeServer() {
+  let handler: (...args: unknown[]) => unknown = () => {}
+  const watcherHandlers = new Map<string, (...args: unknown[]) => void>()
+  return {
+    get handler() { return handler },
+    middlewares: {
+      use(fn: (...args: unknown[]) => unknown) { handler = fn },
+    },
+    watcher: {
+      on(event: string, fn: (...args: unknown[]) => void) { watcherHandlers.set(event, fn) },
+    },
+    notify(event: string, file: string) { watcherHandlers.get('all')?.(event, file) },
+  }
+}
+
+function makeRes() {
+  const res: {
+    statusCode: number
+    headers: Record<string, unknown>
+    body: unknown
+    setHeader: (key: string, value: unknown) => void
+    end: (data: unknown) => void
+  } = {
+    statusCode: 200,
+    headers: {},
+    body: null,
+    setHeader(key, value) { this.headers[key] = value },
+    end(data) { this.body = data },
+  }
+  return res
+}
+
+test('dev 中间件：改写目标按需转码回 WebP 字节且命中缓存，非目标放行', async () => {
+  const dir = makePublicDir([])
+  await writePng(path.join(dir, 'img/a.png'))
+  const plugin = makePlugin(dir, 'serve')
+  const server = makeFakeServer()
+  ;(plugin.configureServer as any)(server)
+
+  const nextCalls: string[] = []
+  const next = () => void nextCalls.push('/next')
+  const request = (url: string): Promise<any> => {
+    const res = makeRes()
+    return Promise.resolve(server.handler({ url }, res, next)).then(() => res)
+  }
+
+  const first = await request('/img/a.webp?v=1')
+  assert.equal(first.statusCode, 200)
+  assert.equal(first.headers['Content-Type'], 'image/webp')
+  assert.equal(first.headers['Cache-Control'], 'no-cache')
+  assert.equal(first.headers['Content-Length'], (first.body as Buffer).length)
+  assert.equal((await sharp(first.body as Buffer).metadata()).format, 'webp')
+  // 第二次请求（不带 query）应命中缓存，字节完全一致
+  const second = await request('/img/a.webp')
+  assert.deepEqual(second.body, first.body)
+  // 非改写目标（源图本身）放行给 Vite 静态服务
+  await request('/img/a.png')
+  assert.deepEqual(nextCalls, ['/next'])
+})
+
+test('dev 中间件：public 已有 .webp 放行、坏图回 500 文本、watcher add 重扫而 change 不扫', async () => {
+  const dir = makePublicDir([])
+  await writePng(path.join(dir, 'img/a.png'))
+  fs.writeFileSync(path.join(dir, 'broken.png'), '')
+  const plugin = makePlugin(dir, 'serve')
+  const server = makeFakeServer()
+  ;(plugin.configureServer as any)(server)
+  const nextCalls: string[] = []
+  const next = () => void nextCalls.push('/next')
+  const request = (url: string): Promise<any> => {
+    const res = makeRes()
+    return Promise.resolve(server.handler({ url }, res, next)).then(() => res)
+  }
+
+  // 坏图：转码失败不能把异常抛出中间件，回 500 文本
+  const failed = await request('/broken.webp')
+  assert.equal(failed.statusCode, 500)
+  assert.equal(String(failed.body).startsWith('[fusim:webp]'), true)
+
+  // configureServer 之后 public 里出现的 .webp 属于用户资源，插件不接管
+  await writePng(path.join(dir, 'img/a.webp'))
+  await request('/img/a.webp')
+  assert.equal(nextCalls.length, 1)
+
+  // change 不重扫：新文件在 change 事件后仍不可见
+  await writePng(path.join(dir, 'img/c.png'))
+  server.notify('change', path.join(dir, 'img/c.png'))
+  await request('/img/c.webp')
+  assert.equal(nextCalls.length, 2)
+  // add 且路径在 publicDir 下才重扫：新源图立即可按需服务（回包非空即实际服务过）
+  server.notify('add', path.join(dir, 'img/c.png'))
+  const added = await request('/img/c.webp')
+  assert.notEqual(added.body, null)
+  // add 但路径不在 publicDir 下：不重扫，仍放行
+  const outside = makePublicDir(['outside.png'])
+  server.notify('add', path.join(outside, 'outside.png'))
+  await request('/outside.webp')
+  assert.deepEqual(nextCalls, ['/next', '/next', '/next'])
+})
+
 function makePlugin(publicDir: string, command: 'build' | 'serve', options: { ssr?: boolean; cacheDir?: string } = {}) {
   const plugin = webpImages({ cacheDir: options.cacheDir })
   ;(plugin.configResolved as any)({
