@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import type { Plugin } from 'vite'
 import sharp from 'sharp'
 
 /** 需要转成 WebP 的源图片扩展名（统一小写后比较）。 */
@@ -188,4 +189,147 @@ export async function ensureWebp(
   fs.writeFileSync(tmpPath, data)
   fs.renameSync(tmpPath, cachePath)
   return { data, cached: false }
+}
+
+/** 编码缺省参数：quality / effort 与 sharp 默认值一致，构建间也保持稳定。 */
+const DEFAULTS: EncodeOptions = { quality: 75, effort: 4 }
+
+/** 每批并发转码的张数：动图动辄 43 MB，控制同时驻留内存的规模。 */
+const BATCH_SIZE = 4
+
+/** 一次成功转码的记录，`closeBundle` 只把成功项拷进 outDir。 */
+type Converted = {
+  entry: ImageEntry
+  cachePath: string
+  sourceBytes: number
+  outputBytes: number
+}
+
+/** 报告用的人类可读字节数。 */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units: string[] = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1024
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex++
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+/** 插件选项：转码质量 / 压缩投入 / 缓存目录。 */
+export type WebpOptions = { quality?: number; effort?: number; cacheDir?: string }
+
+/**
+ * Vite 插件：build 时把 `public/` 里的图片转成 WebP 并改写全部引用。
+ *
+ * - `transform` / `transformIndexHtml` 把代码里的源图 URL 换成 `.webp`；
+ * - `buildStart` 扫描并转码（命中磁盘缓存几乎零开销），SSR 构建只复用改写；
+ * - `closeBundle` 把转好的文件拷进 outDir、删掉原位拷贝的源图并打印报告。
+ *
+ * dev 端的扫描 / 中间件由后续任务接线，这里不做任何事。
+ */
+export function webpImages(options: WebpOptions = {}): Plugin {
+  const encodeOptions: EncodeOptions = {
+    quality: options.quality ?? DEFAULTS.quality,
+    effort: options.effort ?? DEFAULTS.effort,
+  }
+
+  let publicDir = ''
+  let outDir = ''
+  let command: 'build' | 'serve' = 'build'
+  let cacheDir = ''
+  let isSsr = false
+
+  /** 扫描结果：永不删；改写与转码都从这里取。 */
+  let entries: ImageEntry[] = []
+  /** 成功转码的项。 */
+  let converted: Converted[] = []
+  /** 转码失败的源图：build 不改写它们（dist 保留原图），dev 无预转换不受影响。 */
+  let failed = new Set<string>()
+  /** 转码总耗时（含缓存读写），closeBundle 报告用。 */
+  let conversionMs = 0
+
+  /** 重新扫描 `public/`；被跳过的源图在这里警告说明原因。 */
+  function refresh(): void {
+    const scan = collectImageEntries(publicDir)
+    entries = scan.entries
+    for (const item of scan.skipped) {
+      const reason = item.reason === 'target-exists' ? 'public 里已有同名 .webp' : '目标已被同名不同扩展名的源图占用'
+      console.warn(`[fusim:webp] 跳过 ${item.sourceRel}：${reason}，保留原图。`)
+    }
+  }
+
+  /** 参与改写的图片集：dev 无预转换，全部照改；build 只改转码成功过的（失败项改了会 404）。 */
+  function rewriteSet(): ImageEntry[] {
+    return command === 'build' ? entries.filter((entry) => !failed.has(entry.sourceRel)) : entries
+  }
+
+  return {
+    name: 'fusim:webp',
+    configResolved(config) {
+      publicDir = config.publicDir
+      outDir = path.resolve(config.root, config.build.outDir)
+      command = config.command
+      isSsr = Boolean(config.build.ssr)
+      // 缓存目录默认放 node_modules/.cache：放 publicDir 里会被当成源图扫描
+      cacheDir = options.cacheDir ?? path.join(config.root, 'node_modules/.cache/fusim-webp')
+    },
+    async buildStart() {
+      // dev 冷启动不做事；dev 的扫描由 configureServer 接线（后续任务）
+      if (command !== 'build') return
+      refresh()
+      // SSR 构建只复用改写（build:ssg 的预渲染页面也要引用 .webp），不转换、不拷贝、不删原图
+      if (isSsr) return
+
+      const startedAt = Date.now()
+      for (let index = 0; index < entries.length; index += BATCH_SIZE) {
+        await Promise.all(entries.slice(index, index + BATCH_SIZE).map(async (entry) => {
+          try {
+            const stats = fs.statSync(entry.sourceAbs)
+            const { data } = await ensureWebp(entry, cacheDir, encodeOptions)
+            converted.push({
+              entry,
+              cachePath: cachePathFor(cacheDir, entry, stats, encodeOptions),
+              sourceBytes: stats.size,
+              outputBytes: data.length,
+            })
+          } catch (error) {
+            failed.add(entry.sourceRel)
+            console.warn(error instanceof Error ? error.message : String(error))
+          }
+        }))
+      }
+      conversionMs = Date.now() - startedAt
+    },
+    transform(code: string) {
+      return rewriteReferences(code, rewriteSet())
+    },
+    transformIndexHtml(html: string) {
+      return rewriteReferences(html, rewriteSet()) ?? undefined
+    },
+    closeBundle() {
+      if (command !== 'build' || isSsr) return
+
+      for (const item of converted) {
+        // public/ 资源不进打包图，直接把转好的文件落盘到 outDir
+        const targetAbs = path.join(outDir, item.entry.targetRel)
+        fs.mkdirSync(path.dirname(targetAbs), { recursive: true })
+        fs.copyFileSync(item.cachePath, targetAbs)
+        // 删掉 copyPublicDir 拷进来的源图，outDir 里只留 .webp
+        const sourceAbs = path.join(outDir, item.entry.sourceRel)
+        if (fs.existsSync(sourceAbs)) fs.unlinkSync(sourceAbs)
+      }
+
+      if (converted.length === 0) return
+      const totalSource = converted.reduce((sum, item) => sum + item.sourceBytes, 0)
+      const totalOutput = converted.reduce((sum, item) => sum + item.outputBytes, 0)
+      const savedPercent = Math.max(0, Math.round((1 - totalOutput / totalSource) * 100))
+      console.log(`[fusim:webp] ${converted.length} 张 · ${formatBytes(totalSource)} → ${formatBytes(totalOutput)} (-${savedPercent}%) · ${(conversionMs / 1000).toFixed(1)}s`)
+      for (const item of converted) {
+        console.log(`[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(item.outputBytes)}`)
+      }
+    },
+  }
 }

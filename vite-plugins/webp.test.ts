@@ -4,7 +4,14 @@ import os from 'node:os'
 import path from 'node:path'
 import { after, mock, test } from 'node:test'
 import sharp from 'sharp'
-import { cachePathFor, collectImageEntries, encodeWebp, ensureWebp, rewriteReferences } from './webp.ts'
+import {
+  cachePathFor,
+  collectImageEntries,
+  encodeWebp,
+  ensureWebp,
+  rewriteReferences,
+  webpImages,
+} from './webp.ts'
 
 const dirs: string[] = []
 function makePublicDir(files: string[]): string {
@@ -158,4 +165,35 @@ test('缓存写入是原子的：rename 失败时正式键上不留半截文件'
   const retried = await ensureWebp(entries[0], cacheDir, options)
   assert.equal(retried.cached, false)
   assert.deepEqual(fs.readdirSync(cacheDir).filter((name) => name.endsWith('.tmp')), [])
+})
+
+async function writePng(abs: string) {
+  fs.mkdirSync(path.dirname(abs), { recursive: true })
+  await sharp({ create: { width: 16, height: 16, channels: 3, background: '#abcdef' } }).png().toFile(abs)
+}
+
+function makePlugin(publicDir: string, command: 'build' | 'serve') {
+  const plugin = webpImages()
+  ;(plugin.configResolved as any)({ root: publicDir, publicDir, command, build: { outDir: path.join(publicDir, 'dist'), ssr: false } })
+  return plugin
+}
+
+test('build 时 transform 改写已转换的引用', async () => {
+  const dir = makePublicDir([])
+  await writePng(path.join(dir, 'img/a.png'))
+  const plugin = makePlugin(dir, 'build')
+  await (plugin.buildStart as any).call({})
+  assert.equal((plugin.transform as any).call({}, 'src="/img/a.png"', '/x.tsx'), 'src="/img/a.webp"')
+  assert.equal((plugin.transform as any).call({}, 'const a = 1', '/x.tsx'), null)
+})
+
+test('转码失败的图片不参与 build 改写（原图保留）', async () => {
+  const dir = makePublicDir(['img/broken.png'])  // 空文件
+  const plugin = makePlugin(dir, 'build')
+  const warnings: unknown[][] = []
+  const origWarn = console.warn
+  console.warn = (...args: unknown[]) => void warnings.push(args)
+  try { await (plugin.buildStart as any).call({}) } finally { console.warn = origWarn }
+  assert.equal((plugin.transform as any).call({}, 'src="/img/broken.png"', '/x.tsx'), null)
+  assert.equal(warnings.length, 1)
 })

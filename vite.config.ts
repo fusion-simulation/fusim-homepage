@@ -3,10 +3,11 @@ import { griffel } from '@griffel/vite-plugin'
 import { defineConfig } from 'vite'
 import { mdx } from './vite-plugins/mdx.ts'
 import { publications } from './vite-plugins/publications.ts'
+import { webpImages } from './vite-plugins/webp.ts'
 
 // https://vite.dev/config/
 export default defineConfig(({ isSsrBuild }) => ({
-  plugins: [mdx(), react(), griffel(), publications()],
+  plugins: [mdx(), react(), griffel(), publications(), webpImages()],
   build: {
     // SSR 构建不需要再次拷贝 public/ 资源
     copyPublicDir: !isSsrBuild,
