@@ -2,7 +2,6 @@ import { StrictMode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { Router } from 'wouter'
 import { App } from './App.tsx'
-import './styles/global.css'
 import 'katex/dist/katex.min.css'
 
 const container = document.getElementById('root')

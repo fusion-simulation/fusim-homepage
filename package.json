@@ -15,6 +15,7 @@
     "@griffel/react": "^1.7.8",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "styled-components": "^6.6.0",
     "wouter": "^3.13.0"
   },
   "devDependencies": {
