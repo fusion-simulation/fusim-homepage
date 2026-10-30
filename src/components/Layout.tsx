@@ -1,16 +1,14 @@
 import type { ReactNode } from 'react'
-import { useLayoutStyles } from '../styles/layout'
+import { Content, Page } from '../styles/layout'
 import { Footer } from './Footer'
 import { Header } from './Header'
 
 export function Layout({ children }: { children: ReactNode }) {
-  const c = useLayoutStyles()
-
   return (
-    <div className={c.page}>
+    <Page>
       <Header />
-      <main className={c.content}>{children}</main>
+      <Content>{children}</Content>
       <Footer />
-    </div>
+    </Page>
   )
 }

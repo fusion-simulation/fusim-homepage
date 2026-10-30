@@ -71,18 +71,3 @@ export function resolveMeta(pathname: string): PageMeta {
 
   return staticMeta[url] ?? { title: '404 | 聚核智算 FUSIM', description: site.description }
 }
-
-export type StaticPath = PageMeta & { url: string }
-
-/** 构建期需要预渲染的全部页面。 */
-export function getStaticPaths(): StaticPath[] {
-  const paths = new Map<string, PageMeta>()
-
-  for (const [url, meta] of Object.entries(staticMeta)) paths.set(url, meta)
-  for (const page of contentPageByUrl.keys()) paths.set(page, resolveMeta(page))
-  for (const dir of attachmentDirByUrl.keys()) paths.set(dir, resolveMeta(dir))
-
-  return [...paths.entries()]
-    .map(([url, meta]) => ({ url, ...meta }))
-    .sort((a, b) => a.url.localeCompare(b.url))
-}

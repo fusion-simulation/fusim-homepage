@@ -1,14 +1,10 @@
-import { mergeClasses } from '@griffel/react'
-import { Link } from 'wouter'
 import type { ContentPage } from '../lib/content'
 import { productSections, productsOfSection } from '../lib/content'
-import { useSharedStyles } from '../styles/shared'
+import { CardAnchor, CardGrid, CardLink, Reveal, Section } from '../styles/shared'
 
 function ProductCard({ product }: { product: ContentPage }) {
-  const s = useSharedStyles()
   const { frontmatter } = product
   const externalUrl = frontmatter.external_url
-  const className = mergeClasses(s.card, s.reveal, s.delay1)
   const description = frontmatter.desp ?? frontmatter.description
 
   const content = (
@@ -20,27 +16,20 @@ function ProductCard({ product }: { product: ContentPage }) {
 
   if (externalUrl) {
     return (
-      <a
-        href={externalUrl}
-        className={className}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <CardAnchor href={externalUrl} $delay={1} target="_blank" rel="noopener noreferrer">
         {content}
-      </a>
+      </CardAnchor>
     )
   }
 
   return (
-    <Link href={product.url} className={className}>
+    <CardLink href={product.url} $delay={1}>
       {content}
-    </Link>
+    </CardLink>
   )
 }
 
 export function ProductsPage() {
-  const s = useSharedStyles()
-
   return (
     <>
       {productSections.map((section) => {
@@ -49,22 +38,18 @@ export function ProductsPage() {
         const sectionProducts = productsOfSection(frontmatter.section_key)
 
         return (
-          <section
-            className={s.section}
-            id={`products-${frontmatter.section_key}`}
-            key={section.url}
-          >
-            <div className={s.reveal}>
+          <Section id={`products-${frontmatter.section_key}`} key={section.url}>
+            <Reveal>
               <h2>{frontmatter.title}</h2>
               <SectionContent />
-            </div>
+            </Reveal>
 
-            <div className={s.cardGrid}>
+            <CardGrid>
               {sectionProducts.map((product) => (
                 <ProductCard key={product.url} product={product} />
               ))}
-            </div>
-          </section>
+            </CardGrid>
+          </Section>
         )
       })}
     </>

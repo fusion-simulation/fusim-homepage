@@ -1,6 +1,13 @@
-import { mergeClasses } from '@griffel/react'
 import type { PublicationNode } from '../lib/publication-types'
-import { useDataTreeStyles } from '../styles/publications'
+import {
+  TreeDirLink,
+  TreeFileLink,
+  TreeItem,
+  TreeList,
+  TreeSize,
+  TreeSubtree,
+  TreeSummary,
+} from '../styles/publications'
 
 type DataTreeProps = {
   nodes: PublicationNode[]
@@ -9,51 +16,37 @@ type DataTreeProps = {
 }
 
 export function DataTree({ nodes, variant = 'site' }: DataTreeProps) {
-  const c = useDataTreeStyles()
-
   if (nodes.length === 0) return null
 
   return (
-    <ul className={c.list}>
+    <TreeList>
       {nodes.map((node) =>
         node.type === 'file' ? (
-          <li key={node.url} className={c.item}>
-            <a
+          <TreeItem key={node.url}>
+            <TreeFileLink
               href={node.url}
               target="_blank"
               rel="noopener noreferrer"
               download
-              className={variant === 'attachment' ? c.fileLinkOnAttachmentPage : undefined}
+              $onAttachmentPage={variant === 'attachment'}
             >
               📄 {node.name}
-            </a>
-            {node.sizeStr ? (
-              <span
-                className={mergeClasses(
-                  c.size,
-                  variant === 'attachment' && c.sizeOnAttachmentPage,
-                )}
-              >
-                ({node.sizeStr})
-              </span>
-            ) : null}
-          </li>
+            </TreeFileLink>
+            {node.sizeStr ? <TreeSize $variant={variant}>({node.sizeStr})</TreeSize> : null}
+          </TreeItem>
         ) : (
-          <li key={node.url} className={c.item}>
+          <TreeItem key={node.url}>
             <details>
-              <summary className={c.summary}>
-                📁{' '}
-                <a href={node.url} target="_blank" className={c.dirLink}>
-                  {node.name}
-                </a>
-              </summary>
-              <div className={c.subtree}>
+              <TreeSummary>
+                📁 <TreeDirLink href={node.url} target="_blank">{node.name}</TreeDirLink>
+              </TreeSummary>
+              <TreeSubtree>
                 <DataTree nodes={node.children} variant={variant} />
-              </div>
+              </TreeSubtree>
             </details>
-          </li>
+          </TreeItem>
         ),
       )}
-    </ul>
+    </TreeList>
   )
 }

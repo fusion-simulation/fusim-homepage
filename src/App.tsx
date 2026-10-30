@@ -33,7 +33,9 @@ export function App() {
 
   // 论文附件目录页是独立页面（不带站点 header / footer）
   const attachmentDir = attachmentDirByUrl.get(url)
-  if (attachmentDir) return <AttachmentDirPage dir={attachmentDir} />
+  if (attachmentDir) {
+    return <AttachmentDirPage dir={attachmentDir} />
+  }
 
   return (
     <Layout>

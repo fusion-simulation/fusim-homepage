@@ -1,169 +1,198 @@
-import { makeStyles } from '@griffel/react'
+import { css, styled } from 'styled-components'
+import { Link } from 'wouter'
+import { ExternalLinkIcon } from '../components/Icons'
+import { reveal, type RevealProps } from './animation'
 
-/** 站点内多处复用的样式：区块、卡片、按钮、入场动画等。 */
-export const useSharedStyles = makeStyles({
-  /* ---------- 区块 ---------- */
-  section: {
-    maxWidth: 'var(--max-width)',
-    margin: '0 auto',
-    padding: '80px 7vw',
-    display: 'grid',
-    gap: '32px',
+export { Reveal } from './animation'
 
-    '& h2': {
-      fontSize: 'clamp(2rem, 3vw, 2.8rem)',
-      fontWeight: 600,
-    },
-    '& p': {
-      color: 'var(--text-muted)',
-      lineHeight: 1.7,
-    },
-    '& ul': {
-      marginTop: '12px',
-      paddingLeft: '18px',
-      color: 'var(--text-muted)',
-      lineHeight: 1.7,
-    },
-  },
+/**
+ * 站点级复用样式：区块、卡片、按钮、标签、时间线。
+ * 只在单个页面里用一次的 styled 组件，直接写在页面文件里。
+ */
 
-  meta: {
-    color: 'var(--text-muted)',
-    fontSize: '0.95rem',
-    marginTop: '8px',
-  },
+/* ---------- 区块 ---------- */
+export const Section = styled.section`
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 80px 7vw;
+  display: grid;
+  gap: 32px;
 
-  cardGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: '20px',
-  },
+  & h2 {
+    font-size: clamp(2rem, 3vw, 2.8rem);
+    font-weight: 600;
+  }
 
-  card: {
-    backgroundColor: 'var(--bg-soft)',
-    borderRadius: 'var(--radius-md)',
-    padding: '24px',
-    border: '1px solid var(--line)',
+  & p {
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
 
-    '& h4': {
-      marginBottom: '10px',
-    },
-  },
+  & ul {
+    margin-top: 12px;
+    padding-left: 18px;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+`
 
-  split: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '28px',
-  },
+export const Meta = styled.p`
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 8px;
+`
 
-  quote: {
-    fontFamily: 'var(--font-serif)',
-    fontSize: '1.4rem',
-    lineHeight: 1.6,
-    borderLeft: '2px solid var(--accent)',
-    paddingLeft: '18px',
-  },
+export const CardGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+`
 
-  timeline: {
-    display: 'grid',
-    gap: '14px',
-  },
+const cardCss = css`
+  background-color: var(--bg-soft);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  border: 1px solid var(--line);
 
-  timelineItem: {
-    display: 'grid',
-    gridTemplateColumns: '100px 1fr',
-    gap: '18px',
-    padding: '16px 0',
-    borderBottom: '1px dashed rgba(255, 255, 255, 0.1)',
+  & h4 {
+    margin-bottom: 10px;
+  }
+`
 
-    '& span': {
-      color: 'var(--text-muted)',
-    },
+export const Card = styled.div<RevealProps>`
+  ${cardCss}
+  ${reveal}
+`
 
-    '@media (max-width: 960px)': {
-      gridTemplateColumns: '1fr',
-    },
-  },
+/** 产品卡片：内部路由。 */
+export const CardLink = styled(Link)<RevealProps>`
+  ${cardCss}
+  ${reveal}
+`
 
-  heroTag: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '8px 14px',
-    borderRadius: '10px',
-    border: '1px solid var(--line)',
-    color: 'var(--text-muted)',
-    fontSize: '0.9rem',
-    backgroundColor: 'var(--surface-translucent)',
-  },
+/** 产品卡片：外链。 */
+export const CardAnchor = styled.a<RevealProps>`
+  ${cardCss}
+  ${reveal}
+`
 
-  /** 列表中日期标签的间距（原模板中的内联样式）。 */
-  cardTag: {
-    marginBottom: '12px',
-  },
+export const Split = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 28px;
+`
 
-  /** 论文年份标题（原模板中的内联样式）。 */
-  yearHeading: {
-    fontSize: '1.6rem',
-  },
+export const Quote = styled.p`
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  line-height: 1.6;
+  border-left: 2px solid var(--accent);
+  padding-left: 18px;
+`
 
-  /* ---------- 按钮 ---------- */
-  button: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '14px 22px',
-    borderRadius: '10px',
-    fontWeight: 600,
-    lineHeight: 1.05,
-    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+export const Timeline = styled.div`
+  display: grid;
+  gap: 14px;
+`
 
-    '&:hover': {
-      transform: 'translateY(-2px)',
-    },
-  },
+export const TimelineItem = styled.div<RevealProps>`
+  ${reveal}
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 18px;
+  padding: 16px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
 
-  buttonPrimary: {
-    backgroundColor: 'var(--accent)',
-    color: '#0f1116',
-    boxShadow: '0 20px 40px rgba(63, 109, 246, 0.18)',
-  },
+  & span {
+    color: var(--text-muted);
+  }
 
-  buttonSecondary: {
-    border: '1px solid var(--line)',
-    color: 'var(--text)',
-    backgroundColor: '#fff',
-  },
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+`
 
-  buttonAccent: {
-    backgroundColor: 'var(--accent-2)',
-    border: '1px solid var(--accent-2)',
-    color: '#0f1116',
-    boxShadow: '0 18px 32px rgba(79, 209, 197, 0.2)',
-  },
+export const HeroTag = styled.p`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  background-color: var(--surface-translucent);
+`
 
-  buttonLight: {
-    backgroundColor: '#fff',
-    color: '#1e2432',
-    border: '1px solid rgba(30, 36, 50, 0.12)',
-  },
+/** 列表卡片顶部的日期标签。 */
+export const CardTag = styled(HeroTag)`
+  margin-bottom: 12px;
+`
 
-  buttonIcon: {
-    width: '16px',
-    height: '16px',
-    display: 'block',
-  },
+/** 论文年份标题。 */
+export const YearHeading = styled.h3`
+  font-size: 1.6rem;
+`
 
-  /* ---------- 入场动画 ---------- */
-  reveal: {
-    opacity: 0,
-    transform: 'translateY(12px)',
-    animationName: 'fadeUp',
-    animationDuration: '0.8s',
-    animationTimingFunction: 'ease',
-    animationFillMode: 'forwards',
-  },
+/* ---------- 按钮 ---------- */
+export type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'light'
 
-  delay1: { animationDelay: '0.15s' },
-  delay2: { animationDelay: '0.3s' },
-  delay3: { animationDelay: '0.45s' },
-})
+const buttonVariants = {
+  primary: css`
+    background-color: var(--accent);
+    color: #0f1116;
+    box-shadow: 0 20px 40px rgba(63, 109, 246, 0.18);
+  `,
+  secondary: css`
+    border: 1px solid var(--line);
+    color: var(--text);
+    background-color: #fff;
+  `,
+  accent: css`
+    background-color: var(--accent-2);
+    border: 1px solid var(--accent-2);
+    color: #0f1116;
+    box-shadow: 0 18px 32px rgba(79, 209, 197, 0.2);
+  `,
+  light: css`
+    background-color: #fff;
+    color: #1e2432;
+    border: 1px solid rgba(30, 36, 50, 0.12);
+  `,
+}
+
+const buttonCss = css<{ $variant: ButtonVariant }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px;
+  border-radius: 10px;
+  font-weight: 600;
+  line-height: 1.05;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  ${({ $variant }) => buttonVariants[$variant]}
+`
+
+export const BtnLink = styled(Link)<{ $variant: ButtonVariant }>`
+  ${buttonCss}
+`
+
+export const BtnAnchor = styled.a<{ $variant: ButtonVariant }>`
+  ${buttonCss}
+`
+
+export const ButtonIcon = styled(ExternalLinkIcon)`
+  width: 16px;
+  height: 16px;
+  display: block;
+`
+
+/** 居中/留白用的按钮行（原 NotFoundPage 的内联 marginTop）。 */
+export const ButtonRow = styled.p`
+  margin-top: 24px;
+`

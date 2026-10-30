@@ -1,90 +1,82 @@
-import { makeStyles } from '@griffel/react'
+import { styled } from 'styled-components'
 
 /** 论文附件文件树。 */
-export const useDataTreeStyles = makeStyles({
-  list: {
-    listStyle: 'none',
-    padding: 0,
-    marginTop: '0.3rem',
-  },
 
-  item: {
-    marginBottom: '0.2rem',
-  },
+export const TreeList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin-top: 0.3rem;
+`
 
-  size: {
-    marginLeft: '0.5rem',
-    fontSize: '0.8em',
-    color: 'var(--text-muted)',
-  },
+export const TreeItem = styled.li`
+  margin-bottom: 0.2rem;
+`
 
-  /** 附件目录页使用固定的浅色配色，与原生成的静态页面一致。 */
-  sizeOnAttachmentPage: {
-    color: '#5b667a',
-  },
+export const TreeSize = styled.span<{ $variant?: 'site' | 'attachment' }>`
+  margin-left: 0.5rem;
+  font-size: 0.8em;
+  color: ${({ $variant }) => ($variant === 'attachment' ? '#5b667a' : 'var(--text-muted)')};
+`
 
-  fileLinkOnAttachmentPage: {
-    color: '#0056b3',
-  },
+export const TreeFileLink = styled.a<{ $onAttachmentPage?: boolean }>`
+  color: ${({ $onAttachmentPage }) => ($onAttachmentPage ? '#0056b3' : 'inherit')};
+`
 
-  summary: {
-    cursor: 'pointer',
-    userSelect: 'none',
-    outline: 'none',
-    display: 'inline-block',
-  },
+export const TreeSummary = styled.summary`
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  display: inline-block;
+`
 
-  dirLink: {
-    color: 'inherit',
-    textDecoration: 'none',
+export const TreeDirLink = styled.a`
+  color: inherit;
+  text-decoration: none;
 
-    '&:hover': {
-      textDecoration: 'underline',
-    },
-  },
+  &:hover {
+    text-decoration: underline;
+  }
+`
 
-  subtree: {
-    paddingLeft: '1.5rem',
-    marginTop: '0.2rem',
-  },
+export const TreeSubtree = styled.div`
+  padding-left: 1.5rem;
+  margin-top: 0.2rem;
+`
 
-  dataFiles: {
-    marginTop: '0.5rem',
-    fontSize: '0.9em',
-  },
-})
+export const DataFiles = styled.div`
+  margin-top: 0.5rem;
+  font-size: 0.9em;
+`
 
-/** 论文附件目录页（`/assets/pub/.../`）。 */
-export const useAttachmentStyles = makeStyles({
-  root: {
-    backgroundColor: '#fff',
-    minHeight: '100vh',
-    color: '#333',
-    fontFamily: 'sans-serif',
-    padding: '4rem 2rem',
-  },
+/** 论文附件目录页（`/assets/pub/.../`），固定浅色配色，与原生成的静态页一致。 */
+export const AttachmentRoot = styled.div`
+  background-color: #fff;
+  min-height: 100vh;
+  color: #333;
+  font-family: sans-serif;
+  padding: 4rem 2rem;
+`
 
-  inner: {
-    maxWidth: '800px',
-    margin: '0 auto',
-  },
+export const AttachmentInner = styled.div`
+  max-width: 800px;
+  margin: 0 auto;
+`
 
-  backLink: {
-    display: 'inline-block',
-    marginBottom: '2rem',
-    color: '#0056b3',
-    textDecoration: 'none',
-    fontWeight: 500,
+export const BackLink = styled.a`
+  display: inline-block;
+  margin-bottom: 2rem;
+  color: #0056b3;
+  text-decoration: none;
+  font-weight: 500;
 
-    '&:hover': {
-      textDecoration: 'underline',
-    },
-  },
+  &:hover {
+    text-decoration: underline;
+  }
+`
 
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    padding: '2rem',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-  },
-})
+export const AttachmentCard = styled.div`
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+`

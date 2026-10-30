@@ -1,6 +1,6 @@
 # 聚核智算 FUSIM 官网
 
-基于 **React 19 + wouter + Griffel + MDX** 重写的 FUSIM 企业门户，内容与页面结构对齐原 Lume 站点（`fusim-homepage/`）：首页、公司新闻、社会报导、产品矩阵、论文发表、关于我们、企业责任，以及论文附件目录页。
+基于 **React 19 + wouter + styled-components + MDX** 重写的 FUSIM 企业门户，内容与页面结构对齐原 Lume 站点（`fusim-homepage/`）：首页、公司新闻、社会报导、产品矩阵、论文发表、关于我们、企业责任，以及论文附件目录页。
 
 ## 技术栈
 
@@ -8,47 +8,50 @@
 | --- | --- |
 | UI | React 19 + TypeScript |
 | 路由 | [wouter](https://github.com/molefrog/wouter)（SPA 客户端路由） |
-| 样式 | [Griffel](https://griffel.js.org/)（`makeStyles` 原子化 CSS-in-JS） |
-| 内容 | MDX（`@mdx-js/mdx`）+ YAML frontmatter + GFM + KaTeX |
+| 样式 | [styled-components](https://styled-components.com/)（组件化 CSS-in-JS，仓库内无 `.css` 文件） |
+| 内容 | MDX（`@mdx-js/mdx`）+ YAML frontmatter + GFM + MathJax v4（构建期 SVG） |
 | 构建 | Vite 8（Rolldown） |
 
-Griffel 通过 `@griffel/vite-plugin` 在**构建期**完成样式求值与 CSS 抽取：生产环境不注入任何运行时样式代码，样式由 Vite 生成的 CSS 文件直接加载。
+组件样式是 `src/styles/*.ts` 里导出的 styled 组件，页面直接用组件、变体用 `$` 前缀的 transient props。
+全局样式（CSS 变量、暗色覆盖、重置、`body` 背景）内联在 `index.html` 的 `<head>` 里：它们必须首屏生效，
+交给运行时注入会先闪一帧白底。仓库里因此既没有 `.css` 文件，也没有运行时全局样式注入。
+颜色仍走 `var(--*)`，暗色主题由 `index.html` 的内联脚本设置 `html[data-theme]` 驱动，不经过 React。
+
+数学公式在**构建期**由 `vite-plugins/mathjax.ts` 调用 MathJax v4 渲染成自包含 SVG（字形路径内嵌、
+无外部字体与样式表），因此**产物里没有任何 CSS 文件**。
 
 ## 常用命令
 
 ```bash
 npm run dev        # 本地开发（http://localhost:5173）
 npm run build      # SPA 构建，产物在 dist/（index.html + 静态资源 + 404.html 回退页）
-npm run build:ssg  # 可选：预渲染每个路由为独立 HTML（dist/about/index.html 等）
 npm run preview    # 预览构建产物
 npm run lint       # oxlint
 npm test           # vite-plugins 单元测试（node --test）
 ```
 
-> `build` 是默认形态：单页应用（SPA），由 `index.html` 加载 JS 后渲染页面。
-> 如果希望构建时就把每个路由“写死”成 HTML（利于 SEO、无 JS 环境访问），使用 `build:ssg`。
+> 站点是单页应用（SPA）：由 `index.html` 加载 JS 后渲染页面，未命中的路径回退到 `404.html`。
 
 ## 目录结构
 
 ```
 index.html                  # SPA 入口（主题预设、字体、meta）
-vite.config.ts              # Vite 配置（MDX / Griffel / 论文附件扫描插件）
+vite.config.ts              # Vite 配置（MDX / 论文附件扫描 / 图片转 WebP 插件）
 vite-plugins/
-  mdx.ts                    # 把 .mdx 编译为 React 组件（frontmatter / GFM / KaTeX）
+  mdx.ts                    # 把 .mdx 编译为 React 组件（frontmatter / GFM）
+  mathjax.ts                # 构建期把 $...$ / $$...$$ 用 MathJax v4 渲染成自包含 SVG
   publications.ts           # 构建期扫描 public/assets/pub，生成 virtual:publications
   webp.ts                   # build 时把 public 图片转为 WebP 并改写引用（带磁盘缓存）
 scripts/
   spa-fallback.mjs          # 复制 index.html -> 404.html
-  prerender.mjs             # build:ssg 的预渲染脚本
 src/
   main.tsx                  # 客户端入口
-  entry-server.tsx          # 仅 build:ssg 使用的 SSR 入口
   App.tsx                   # 路由表 + 标题同步
   components/               # Header / Footer / Layout / DataTree / 图标
   pages/                    # 各页面（首页、产品、论文、附件目录...）
   content/                  # 站点数据 + MDX 内容
   lib/                      # 内容索引、meta、论文数据
-  styles/                   # Griffel 样式（global.css 只放 CSS 变量与全局重置）
+  styles/                   # styled 组件（global.ts 是 createGlobalStyle 的全局样式）
 public/assets/              # 图片、论文 PDF 等静态资源
 ```
 
@@ -128,14 +131,17 @@ public/assets/              # 图片、论文 PDF 等静态资源
 
 ## 实现说明
 
-- **Griffel 构建期抽取**：`@griffel/vite-plugin` 依赖 CSS 注释标记来识别、排序原子样式，因此
-  `vite.config.ts` 中关闭了 `build.cssMinify`（否则压缩会丢掉标记，`@media` 规则将排在基础规则之前，
-  导致移动端样式失效）。若需要压缩 CSS，请改用保留注释的压缩方案。
+- **样式组织**：站点级复用样式在 `src/styles/shared.ts` / `layout.ts` / `hero.ts` / `prose.ts` /
+  `publications.ts`，各自导出 styled 组件；只在单个页面用一次的组件（如日志正文的 `JournalArticle`）
+  直接写在页面文件里。动画片段 `reveal` + `$delay`（0–3）实现入场级联。
+- **数学公式**：`vite-plugins/mathjax.ts` 只加载 MathJax 的 `input/tex` + `output/svg` + `adaptors/liteDOM`，
+  不加载 `a11y/sre`（它会在 Node 里起 worker thread 让构建进程无法退出，且让公式体积翻三倍）。
+  SVG 自带字形路径，用 `aria-label` 写入 TeX 源码作为可访问名称。相同公式按 `display + tex` 缓存。
 - **移动端导航**：原模板在展开菜单时，关闭按钮会被挤到第三行；这里用 `order` 让「品牌 + 操作按钮」
   始终位于第一行。
 - **论文附件**：「更新」时间取 PDF 的文件修改时间，因此与构建环境中的文件时间有关。
 - **原 `<style>` 覆盖**：`products/service_*.md` 里用于把正文放宽到 2400px 的 `<style>` 块
-  改为 frontmatter 的 `wide: true`，由 Griffel 样式实现（效果一致，且不会污染全局）。
+  改为 frontmatter 的 `wide: true`，由 `ProseArticle` 的 `$wide` 变体实现（效果一致，且不会污染全局）。
 - **代码块**：MDX 代码块会得到 `.prose pre / code` 样式，但不再引入 Prism 语法高亮
   （原站点内容中没有代码块；需要时可加 `rehype-prism-plus`）。
 - **图片转 WebP**：`vite-plugins/webp.ts` 在 build 时把 `public/` 下的图片转成 WebP，并把编译后模块与
@@ -162,8 +168,6 @@ public/assets/              # 图片、论文 PDF 等静态资源
     `dist/` 保留可用原图；发布（closeBundle）阶段拷贝 `.webp` 或删原图失败则构建报错中止，报告只统计发布成功的条目。
   - **不做 AVIF**：sharp/libheif 的动图 AVIF 有「堆叠帧总高 ≤ 16384 px」的上限，本站动图
     （36 帧 × 450 px 已近顶，5 张 GIF 全部超出）都装不进去，收益抵不过成本，故只做 WebP。
-  - **预渲染不重复转码**：`build:ssg` 的 SSR 趟是独立进程，两趟唯一共享的事实是缓存目录——
-    缓存里已有的就是 client 趟转成功的条目，SSR 趟只按缓存改写、不转码，明细表只打印一次。
 
 ## 部署
 
@@ -173,5 +177,3 @@ SPA 需要把未命中的路径回退到 `index.html`，构建脚本已生成 `d
 - nginx：`try_files $uri $uri/ /index.html;`
 - 对象存储 / CDN：把 404 文档指向 `404.html`。
 - 论文附件中的大数据文件（dump / energy 等）不随构建产物发布，需单独上传到静态服务器的 `/assets/pub/...`。
-
-若不确定托管平台是否支持回退，可使用 `npm run build:ssg` 生成真实的多页面 HTML。
