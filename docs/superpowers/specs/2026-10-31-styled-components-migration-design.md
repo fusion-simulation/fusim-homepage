@@ -44,9 +44,11 @@
     输出自包含（`<defs>` 内嵌字形、无 `@font-face` / `url()`），每个公式 id 前缀独立；
     MDX 编译 → `react-dom/server` 渲染无警告，`xlink:href`、`viewBox` 正常落地。
     初始加载约 1s，之后每个公式几十毫秒。
-  - 代价：语义属性 `data-semantic-*` 让体积偏大（简单行内公式约 5KB、复杂行间公式约
-    20KB+，gzip 后小得多）。默认保留（无障碍朗读依赖它）；如果之后嫌大，可以只剥掉
-    这些属性再输出。
+  - 只加载 `input/tex` + `output/svg` + `adaptors/liteDOM`（经 `startup.js`），
+    不加载 `a11y/sre`：SRE 在 Node 里会起一个 worker thread，`vite build` 与
+    `node --test` 结束后进程退不掉（官方方案 `MathJax.done()` 会整体关闭，不能在中途调用），
+    而且它的 `data-semantic-*` 让每个公式大 3 倍（复杂行间从 8KB 涨到 23KB）。
+  - 代价：没有语音文本。用 TeX 源码写入 SVG 的 `aria-label` 兜底（`role="img"` 至少有名字）。
 - `src/styles/` 目录结构保留，文件名仍是 `shared.ts` / `layout.ts` / `hero.ts` /
   `prose.ts` / `publications.ts`，新增 `global.ts`。
 
@@ -90,11 +92,10 @@ C. 保留样式对象 + 自制注入器：等于重写一遍 Griffel。
   dev 下的类名保持 styled-components 的默认哈希。
 - **数学公式（v4 SVG，构建期）**：新增 `vite-plugins/mathjax.ts`，在 `mdx()` 的
   `rehypePlugins` 里替换现在的 `rehype-katex`：
-  - 首次命中公式时懒加载 `@mathjax/src/bundle/tex-svg.js`（liteDOM adaptor，
-    `output.font = 'mathjax-newcm'`、`fontCache: 'local'`、`startup.typeset = false`），
-    之后复用同一个实例。
   - 识别 remark-math 产出的 `language-math` / `math-inline` / `math-display` 节点；
     行间公式若包在 `<pre><code>` 里，替换整个 `<pre>`（沿用 `rehype-mathjax` 的处理）。
+  - 首次命中公式时懒加载 `@mathjax/src/bundle/startup.js`（liteDOM adaptor，
+    `output.font = 'mathjax-newcm'`、`fontCache: 'local'`、`startup.typeset = false`）。
   - `MathJax.tex2svgPromise()` → 取 `<svg>` → `serializeXML` → `hast-util-from-html`
     还原成 hast，外面包一层 `span.math.math-inline` 或 `div.math.math-display`
     （行间加 `text-align: center`），不产出 `mjx-container` 这种需要 MathJax CSS 的节点。

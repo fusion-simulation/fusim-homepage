@@ -1,10 +1,10 @@
 import { compile } from '@mdx-js/mdx'
 import type { Plugin } from 'vite'
-import rehypeKatex from 'rehype-katex'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter'
+import { mathjax } from './mathjax.ts'
 
 const MDX_RE = /\.mdx?$/
 
@@ -14,7 +14,7 @@ const MDX_RE = /\.mdx?$/
  * 功能对齐原 Lume 站点的 `remark()` + `katex()` 插件：
  * - YAML frontmatter 以 `frontmatter` 具名导出
  * - GFM（表格 / 任务列表 / 删除线等）
- * - `$...$` / `$$...$$` 数学公式（KaTeX）
+ * - `$...$` / `$$...$$` 数学公式（构建期用 MathJax v4 渲染成自包含 SVG）
  */
 export function mdx(): Plugin {
   return {
@@ -32,7 +32,7 @@ export function mdx(): Plugin {
           remarkGfm,
           remarkMath,
         ],
-        rehypePlugins: [rehypeKatex],
+        rehypePlugins: [mathjax],
       })
 
       return { code: String(compiled), map: null }
