@@ -1,12 +1,10 @@
 import { Fragment } from 'react'
 import { DataTree } from '../components/DataTree'
 import { publications } from '../lib/publications'
-import { useDataTreeStyles } from '../styles/publications'
+import { DataFiles } from '../styles/publications'
 import { Card, CardGrid, Meta, Reveal, Section, YearHeading } from '../styles/shared'
 
 export function PublicationsPage() {
-  const pub = useDataTreeStyles()
-
   return (
     <Section id="publications">
       <Reveal>
@@ -30,10 +28,10 @@ export function PublicationsPage() {
                   </h4>
                   <Meta>{item.meta}</Meta>
                   {item.data.length > 0 ? (
-                    <div className={pub.dataFiles}>
+                    <DataFiles>
                       <strong>附加文件：</strong>
                       <DataTree nodes={item.data} />
-                    </div>
+                    </DataFiles>
                   ) : null}
                 </Card>
               ))}
