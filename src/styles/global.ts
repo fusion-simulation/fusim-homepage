@@ -77,16 +77,4 @@ export const GlobalStyle = createGlobalStyle`
     text-decoration: none;
   }
 
-  /* 主题切换按钮的图标（深色主题下切换太阳 / 月亮） */
-  html .theme-toggle-icon-dark {
-    display: none;
-  }
-
-  html[data-theme="dark"] .theme-toggle-icon-dark {
-    display: block;
-  }
-
-  html[data-theme="dark"] .theme-toggle-icon-light {
-    display: none;
-  }
 `
