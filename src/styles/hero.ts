@@ -1,5 +1,5 @@
 import { css, styled } from 'styled-components'
-import { reveal, type RevealProps } from './animation'
+import { type RevealProps, reveal } from './animation'
 
 /** 首页 hero 与右侧 mock 面板。 */
 

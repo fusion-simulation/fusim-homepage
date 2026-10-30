@@ -34,7 +34,7 @@ test('index.html 的 head 里内联首屏全局样式（变量、暗色覆盖、
 
 test('仓库源码里没有 .css 文件', () => {
   const cssFiles = collectCssFiles(path.join(root, 'src'))
-    .concat(collectCssFiles(path.join(root, 'vite-plugins')))
+    .concat(collectCssFiles(path.join(root, 'webpack-plugins')))
     .concat(collectCssFiles(path.join(root, 'scripts')))
     .map((file) => path.relative(root, file))
 

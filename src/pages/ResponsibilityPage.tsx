@@ -5,9 +5,7 @@ export function ResponsibilityPage() {
     <Section id="responsibility">
       <Reveal>
         <h2>企业责任</h2>
-        <p>
-          我们以绿色算力、开放协作与人才成长作为核心责任方向，持续投入社会与生态建设。
-        </p>
+        <p>我们以绿色算力、开放协作与人才成长作为核心责任方向，持续投入社会与生态建设。</p>
       </Reveal>
       <Split>
         <Card $delay={1}>

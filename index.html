@@ -89,15 +89,14 @@
     </style>
     <script>
       try {
-        var theme = localStorage.getItem('theme')
+        const theme = localStorage.getItem('theme')
         if (theme) document.documentElement.dataset.theme = theme
-      } catch (error) {
+      } catch {
         /* localStorage 不可用时保持默认主题 */
       }
     </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
