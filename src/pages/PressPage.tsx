@@ -1,35 +1,32 @@
-import { mergeClasses } from '@griffel/react'
 import { site } from '../content/site'
-import { useSharedStyles } from '../styles/shared'
+import { Card, CardGrid, Meta, Reveal, Section } from '../styles/shared'
 
 export function PressPage() {
-  const s = useSharedStyles()
-
   return (
-    <section className={s.section} id="press">
-      <div className={s.reveal}>
+    <Section id="press">
+      <Reveal>
         <h2>社会报导</h2>
-      </div>
+      </Reveal>
 
       {site.reports.length > 0 ? (
-        <div className={s.cardGrid}>
+        <CardGrid>
           {site.reports.map((item) => (
-            <article key={item.url} className={mergeClasses(s.card, s.reveal, s.delay1)}>
+            <Card as="article" key={item.url} $delay={1}>
               <h4>
                 <a href={item.url} target="_blank" rel="noopener noreferrer">
                   {item.title}
                 </a>
               </h4>
-              <p className={s.meta}>{item.date}</p>
-            </article>
+              <Meta>{item.date}</Meta>
+            </Card>
           ))}
-        </div>
+        </CardGrid>
       ) : (
-        <div className={mergeClasses(s.card, s.reveal, s.delay1)}>
+        <Card $delay={1}>
           <h4>暂无报导</h4>
           <p>请在页面顶部 YAML 中添加 reports 数据。</p>
-        </div>
+        </Card>
       )}
-    </section>
+    </Section>
   )
 }

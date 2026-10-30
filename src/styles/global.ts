@@ -89,11 +89,4 @@ export const GlobalStyle = createGlobalStyle`
   html[data-theme="dark"] .theme-toggle-icon-light {
     display: none;
   }
-
-  @keyframes fadeUp {
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
 `

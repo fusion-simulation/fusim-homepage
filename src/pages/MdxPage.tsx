@@ -1,28 +1,29 @@
 import { mergeClasses } from '@griffel/react'
+import { styled } from 'styled-components'
 import type { ContentPage } from '../lib/content'
 import { useProseStyles } from '../styles/prose'
-import { useSharedStyles } from '../styles/shared'
+import { Card, HeroTag, Meta, Reveal, Section } from '../styles/shared'
+
+const JournalArticle = styled(Card)`
+  margin-top: 24px;
+`
 
 export function MdxPage({ page }: { page: ContentPage }) {
   const prose = useProseStyles()
-  const s = useSharedStyles()
   const { Component, frontmatter, kind } = page
 
   if (kind === 'journal') {
     return (
-      <section className={s.section} id="journal-post">
-        <div className={s.reveal}>
-          <p className={s.heroTag}>企业日志</p>
+      <Section id="journal-post">
+        <Reveal>
+          <HeroTag>企业日志</HeroTag>
           <h1>{frontmatter.title}</h1>
-          <p className={s.meta}>{frontmatter.date}</p>
-        </div>
-        <article
-          className={mergeClasses(s.card, s.reveal, s.delay1)}
-          style={{ marginTop: 24 }}
-        >
+          <Meta>{frontmatter.date}</Meta>
+        </Reveal>
+        <JournalArticle as="article" $delay={1}>
           <Component />
-        </article>
-      </section>
+        </JournalArticle>
+      </Section>
     )
   }
 

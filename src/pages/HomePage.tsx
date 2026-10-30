@@ -1,9 +1,29 @@
-import { mergeClasses } from '@griffel/react'
-import { Link } from 'wouter'
 import { site } from '../content/site'
-import { useSharedStyles } from '../styles/shared'
-import { useHeroStyles } from '../styles/hero'
-import { ExternalLinkIcon } from '../components/Icons'
+import {
+  FloatCard,
+  FloatRow,
+  FloatTag,
+  FloatTitle,
+  Hero,
+  HeroActions,
+  HeroDescription,
+  HeroText,
+  HeroTitle,
+  HeroVisual,
+  MockBody,
+  MockDot,
+  MockFrame,
+  MockGradient,
+  MockLine,
+  MockMetric,
+  MockMetricLabel,
+  MockMetrics,
+  MockMetricValue,
+  MockScreen,
+  MockTopbar,
+  MockTopbarText,
+} from '../styles/hero'
+import { BtnAnchor, BtnLink, ButtonIcon } from '../styles/shared'
 
 const metrics = [
   { value: '10+', label: '知识产权数量' },
@@ -13,70 +33,64 @@ const metrics = [
 ]
 
 export function HomePage() {
-  const c = useHeroStyles()
-  const s = useSharedStyles()
-
   return (
-    <section className={c.hero} id="intro">
-      <div className={mergeClasses(c.heroText, s.reveal)}>
-        <h1 className={c.heroTitle}>{site.slogan2}</h1>
+    <Hero id="intro">
+      <HeroText>
+        <HeroTitle>{site.slogan2}</HeroTitle>
 
-        <p className={c.heroDescription}>{site.description}</p>
+        <HeroDescription>{site.description}</HeroDescription>
 
-        <div className={c.heroActions}>
-          <Link href="/products/" className={mergeClasses(s.button, s.buttonPrimary)}>
+        <HeroActions>
+          <BtnLink href="/products/" $variant="primary">
             查看产品矩阵
-          </Link>
-          <Link href="/journal/" className={mergeClasses(s.button, s.buttonAccent)}>
+          </BtnLink>
+          <BtnLink href="/journal/" $variant="accent">
             阅读公司新闻
-          </Link>
-          <a
-            className={mergeClasses(s.button, s.buttonLight)}
-            href="https://docs.fusim.cn/"
-          >
+          </BtnLink>
+          <BtnAnchor $variant="light" href="https://docs.fusim.cn/">
             访问产品文档
-            <ExternalLinkIcon className={s.buttonIcon} />
-          </a>
-        </div>
-      </div>
+            <ButtonIcon />
+          </BtnAnchor>
+        </HeroActions>
+      </HeroText>
 
-      <aside className={mergeClasses(c.heroVisual, s.reveal, s.delay1)}>
-        <div className={mergeClasses(c.floatCard, c.floatCardLeft)}>
-          <p className={c.floatTitle}>FUSIM Console</p>
-          <div className={c.floatRow}></div>
-          <div className={c.floatRow}></div>
-          <div className={mergeClasses(c.floatRow, c.floatRowShort)}></div>
-        </div>
-        <div className={mergeClasses(c.floatCard, c.floatCardRight)}>
-          <p className={c.floatTitle}> 1</p>
-          <div className={c.floatTag}>2 </div>
-          <div className={c.floatTag}>3 </div>
-        </div>
-        <div className={c.mockFrame}>
-          <div className={c.mockTopbar}>
-            <span className={c.mockDot}></span>
-            <span className={c.mockDot}></span>
-            <span className={c.mockDot}></span>
-            <p className={c.mockTopbarText}>FUSIM 智算总览</p>
-          </div>
-          <div className={c.mockBody}>
-            <div className={c.mockMetrics}>
+      <HeroVisual $delay={1}>
+        <FloatCard $side="left">
+          <FloatTitle>FUSIM Console</FloatTitle>
+          <FloatRow></FloatRow>
+          <FloatRow></FloatRow>
+          <FloatRow $short></FloatRow>
+        </FloatCard>
+        <FloatCard $side="right">
+          <FloatTitle> 1</FloatTitle>
+          <FloatTag>2 </FloatTag>
+          <FloatTag>3 </FloatTag>
+        </FloatCard>
+        <MockFrame>
+          <MockTopbar>
+            <MockDot></MockDot>
+            <MockDot></MockDot>
+            <MockDot></MockDot>
+            <MockTopbarText>FUSIM 智算总览</MockTopbarText>
+          </MockTopbar>
+          <MockBody>
+            <MockMetrics>
               {metrics.map((metric) => (
-                <div className={c.mockMetric} key={metric.label}>
-                  <strong className={c.mockMetricValue}>{metric.value}</strong>
-                  <p className={c.mockMetricLabel}>{metric.label}</p>
-                </div>
+                <MockMetric key={metric.label}>
+                  <MockMetricValue>{metric.value}</MockMetricValue>
+                  <MockMetricLabel>{metric.label}</MockMetricLabel>
+                </MockMetric>
               ))}
-            </div>
-            <div className={c.mockScreen}>
-              <div className={c.mockGradient}></div>
-              <div className={c.mockLine}></div>
-              <div className={c.mockLine}></div>
-              <div className={mergeClasses(c.mockLine, c.mockLineShort)}></div>
-            </div>
-          </div>
-        </div>
-      </aside>
-    </section>
+            </MockMetrics>
+            <MockScreen>
+              <MockGradient></MockGradient>
+              <MockLine></MockLine>
+              <MockLine></MockLine>
+              <MockLine $short></MockLine>
+            </MockScreen>
+          </MockBody>
+        </MockFrame>
+      </HeroVisual>
+    </Hero>
   )
 }
