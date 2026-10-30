@@ -27,12 +27,7 @@ export default function mdxLoader(
   compile(source, {
     jsx: false,
     jsxImportSource: 'react',
-    remarkPlugins: [
-      remarkFrontmatter,
-      remarkMdxFrontmatter,
-      remarkGfm,
-      remarkMath,
-    ],
+    remarkPlugins: [remarkFrontmatter, remarkMdxFrontmatter, remarkGfm, remarkMath],
     rehypePlugins: [mathjax],
   }).then(
     (compiled) => callback(null, String(compiled)),

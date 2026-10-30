@@ -10,6 +10,7 @@
 | 路由 | [wouter](https://github.com/molefrog/wouter)（SPA 客户端路由） |
 | 样式 | [styled-components](https://styled-components.com/)（组件化 CSS-in-JS，仓库内无 `.css` 文件） |
 | 内容 | MDX（`@mdx-js/mdx`）+ YAML frontmatter + GFM + MathJax v4（构建期 SVG） |
+| 代码质量 | [Biome](https://biomejs.dev/)（lint + 格式化，替代 ESLint / Prettier） |
 | 编译 | TypeScript 5 只做类型检查；TSX 由 Babel 转译（dev 带 Fast Refresh 插桩） |
 | 构建 | webpack 5（见「构建管线」） |
 
@@ -27,7 +28,8 @@
 npm run dev        # 本地开发（http://localhost:5000，改组件走 Fast Refresh；端口被占用时自动 +1）
 npm run build      # SPA 构建，产物在 dist/（index.html + 静态资源 + 404.html 回退页）
 npm run preview    # 预览构建产物（本地静态服务，带 404 回退）
-npm run lint       # oxlint
+npm run lint       # biome check（lint + 格式 + import 排序）
+npm run format     # biome check --write（写回格式、安全修复与 import 排序）
 npm test           # webpack-plugins 单元测试（node --test）
 ```
 

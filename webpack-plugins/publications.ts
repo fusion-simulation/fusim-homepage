@@ -52,9 +52,7 @@ function readManifest(projectRoot: string): ManifestEntry[] {
   try {
     parsed = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { attachments?: unknown }
   } catch (error) {
-    throw new Error(
-      `无法解析 ${MANIFEST_SEGMENTS.join('/')}：${(error as Error).message}`,
-    )
+    throw new Error(`无法解析 ${MANIFEST_SEGMENTS.join('/')}：${(error as Error).message}`)
   }
 
   const attachments = Array.isArray(parsed.attachments) ? parsed.attachments : []
@@ -66,10 +64,7 @@ function readManifest(projectRoot: string): ManifestEntry[] {
     if (typeof rawPath !== 'string') return []
 
     const segments = rawPath.split('/').filter(Boolean)
-    if (
-      segments.length < 3 ||
-      segments.some((segment) => segment === '.' || segment === '..')
-    ) {
+    if (segments.length < 3 || segments.some((segment) => segment === '.' || segment === '..')) {
       throw new Error(
         `附件清单路径不合法：${rawPath}（应形如 2026/1/data/xxx，且不能包含 . 或 ..）`,
       )
@@ -78,10 +73,7 @@ function readManifest(projectRoot: string): ManifestEntry[] {
     return [
       {
         path: segments.join('/'),
-        size:
-          typeof size === 'number' && Number.isFinite(size) && size >= 0
-            ? size
-            : undefined,
+        size: typeof size === 'number' && Number.isFinite(size) && size >= 0 ? size : undefined,
       },
     ]
   })
@@ -130,9 +122,7 @@ function buildTree(files: FileEntry[]): TreeNode[] {
         continue
       }
 
-      let dir = level.find(
-        (node): node is TreeDirNode => node.type === 'dir' && node.name === name,
-      )
+      let dir = level.find((node): node is TreeDirNode => node.type === 'dir' && node.name === name)
       if (!dir) {
         dir = { type: 'dir', name, rel, children: [] }
         level.push(dir)
@@ -308,9 +298,7 @@ function collectPublications(root: string, projectRoot: string): PublicationsDat
  * `virtual:publications` 指到它）：`addContextDependency` 让 webpack 的 watcher 盯住
  * 附件目录，新增 / 删除 PDF 或子目录都会触发重新生成，等价于原 Vite 插件的整页刷新。
  */
-export default function publicationsLoader(
-  this: LoaderContext<Record<string, never>>,
-): string {
+export default function publicationsLoader(this: LoaderContext<Record<string, never>>): string {
   const root = this.rootContext
   const publicDir = path.join(root, 'public')
   const pubDir = path.join(publicDir, ...PUB_SEGMENTS)

@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { Compiler } from 'webpack'
 
 /** sharp 构造函数类型：仅类型层面引用，运行时由懒加载动态 import 提供。 */
-type SharpFactory = (typeof import('sharp'))['default']
+type SharpFactory = typeof import('sharp')['default']
 
 /** 当前 sharp 加载器：默认动态 import 并缓存；测试可注入替代实现模拟包缺失 / 原生二进制损坏。 */
 let sharpLoader: () => Promise<SharpFactory> = async () => (await import('sharp')).default
@@ -27,7 +27,9 @@ async function loadSharp(): Promise<SharpFactory> {
   } catch (error) {
     sharpFactory = undefined
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`[fusim:webp] 无法加载 sharp（请先 npm i -D sharp）：${message}`, { cause: error })
+    throw new Error(`[fusim:webp] 无法加载 sharp（请先 npm i -D sharp）：${message}`, {
+      cause: error,
+    })
   }
   return sharpFactory
 }
@@ -98,7 +100,7 @@ const URL_START_BOUNDARY: string = String.raw`(?<=['"(\s=:]|^)`
 const URL_END_BOUNDARY: string = String.raw`(?=$|[?#'\")\s])(?![A-Za-z0-9._-])`
 
 /** 同一张源图要匹配的 URL 形态：原始字面量 + encodeURI 形态（浏览器请求带空格等字符的文件用的就是编码形态）。 */
-function sourceUrlVariants(entry: ImageEntry): Array<{ source: string, target: string }> {
+function sourceUrlVariants(entry: ImageEntry): Array<{ source: string; target: string }> {
   const variants = [{ source: entry.sourceUrl, target: entry.targetUrl }]
   const encodedSource = encodeURI(entry.sourceUrl)
   if (encodedSource !== entry.sourceUrl) {
@@ -175,7 +177,10 @@ export function rewriteReferences(code: string, entries: ImageEntry[]): string |
   for (const entry of entries) {
     for (const variant of sourceUrlVariants(entry)) {
       // 起点 / 终点都要落在 URL 边界上：`https://cdn…/img/a.png`、`/other/img/a.png`、裸 `img/a.png` 都不是本站引用
-      const pattern = new RegExp(URL_START_BOUNDARY + escapeRegExp(variant.source) + URL_END_BOUNDARY, 'g')
+      const pattern = new RegExp(
+        URL_START_BOUNDARY + escapeRegExp(variant.source) + URL_END_BOUNDARY,
+        'g',
+      )
       result = result.replace(pattern, () => variant.target)
     }
   }
@@ -196,9 +201,13 @@ export async function encodeWebp(sourceAbs: string, options: EncodeOptions): Pro
   try {
     const factory = await loadSharp()
     const { pages } = await factory(sourceAbs).metadata()
-    const pipeline = pages !== undefined && pages > 1 ? factory(sourceAbs, { animated: true }) : factory(sourceAbs)
+    const pipeline =
+      pages !== undefined && pages > 1 ? factory(sourceAbs, { animated: true }) : factory(sourceAbs)
     // 自动按 EXIF 方向摆正（rotate 无参）：输出会丢 orientation 标签，必须在编码前把朝向应用到像素上
-    return await pipeline.rotate().webp({ quality: options.quality, effort: options.effort }).toBuffer()
+    return await pipeline
+      .rotate()
+      .webp({ quality: options.quality, effort: options.effort })
+      .toBuffer()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     if (message.startsWith('[fusim:webp] 无法加载 sharp（请先 npm i -D sharp）')) {
@@ -354,7 +363,10 @@ export class WebpTool {
     this.entries = scan.entries
     this.lastScanAt = Date.now()
     for (const item of scan.skipped) {
-      const reason = item.reason === 'target-exists' ? 'public 里已有同名 .webp' : '目标已被同名不同扩展名的源图占用'
+      const reason =
+        item.reason === 'target-exists'
+          ? 'public 里已有同名 .webp'
+          : '目标已被同名不同扩展名的源图占用'
       console.warn(`[fusim:webp] 跳过 ${item.sourceRel}：${reason}，保留原图。`)
     }
     // dev 改写集 = 全部条目（实际字节由中间件按需补上）
@@ -372,21 +384,23 @@ export class WebpTool {
 
     const startedAt = Date.now()
     for (let index = 0; index < this.entries.length; index += BATCH_SIZE) {
-      await Promise.all(this.entries.slice(index, index + BATCH_SIZE).map(async (entry) => {
-        try {
-          const stats = fs.statSync(entry.sourceAbs)
-          const { data } = await ensureWebp(entry, this.env.cacheDir, this.encodeOptions)
-          this.converted.push({
-            entry,
-            cachePath: cachePathFor(this.env.cacheDir, entry, stats, this.encodeOptions),
-            sourceBytes: stats.size,
-            outputBytes: data.length,
-          })
-        } catch (error) {
-          // 失败的源图不进改写集：产物里保留原图，引用也保持原样
-          console.warn(error instanceof Error ? error.message : String(error))
-        }
-      }))
+      await Promise.all(
+        this.entries.slice(index, index + BATCH_SIZE).map(async (entry) => {
+          try {
+            const stats = fs.statSync(entry.sourceAbs)
+            const { data } = await ensureWebp(entry, this.env.cacheDir, this.encodeOptions)
+            this.converted.push({
+              entry,
+              cachePath: cachePathFor(this.env.cacheDir, entry, stats, this.encodeOptions),
+              sourceBytes: stats.size,
+              outputBytes: data.length,
+            })
+          } catch (error) {
+            // 失败的源图不进改写集：产物里保留原图，引用也保持原样
+            console.warn(error instanceof Error ? error.message : String(error))
+          }
+        }),
+      )
     }
     this.conversionMs = Date.now() - startedAt
     // 改写集只从本轮成功转码（含缓存命中）的条目里取
@@ -417,9 +431,13 @@ export class WebpTool {
 
     const totalSource = this.converted.reduce((sum, item) => sum + item.sourceBytes, 0)
     const totalOutput = this.converted.reduce((sum, item) => sum + item.outputBytes, 0)
-    console.log(`[fusim:webp] ${this.converted.length} 张 · ${formatBytes(totalSource)} → ${formatBytes(totalOutput)} (${formatPercent(totalSource, totalOutput)}) · ${(this.conversionMs / 1000).toFixed(1)}s`)
+    console.log(
+      `[fusim:webp] ${this.converted.length} 张 · ${formatBytes(totalSource)} → ${formatBytes(totalOutput)} (${formatPercent(totalSource, totalOutput)}) · ${(this.conversionMs / 1000).toFixed(1)}s`,
+    )
     for (const item of this.converted) {
-      console.log(`[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(item.outputBytes)}`)
+      console.log(
+        `[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(item.outputBytes)}`,
+      )
     }
   }
 
@@ -446,7 +464,11 @@ export class WebpTool {
 
     let entry = this.entries.find((item) => item.targetUrl === pathname)
     // dev 里新增的源图不会触发重扫：命中 .webp 就补扫一次，让新文件立刻可用
-    if (!entry && pathname.endsWith(WEBP_EXTENSION) && Date.now() - this.lastScanAt > RESCAN_INTERVAL_MS) {
+    if (
+      !entry &&
+      pathname.endsWith(WEBP_EXTENSION) &&
+      Date.now() - this.lastScanAt > RESCAN_INTERVAL_MS
+    ) {
       this.rescan()
       entry = this.entries.find((item) => item.targetUrl === pathname)
     }
@@ -487,7 +509,11 @@ export class WebpPlugin {
   /** dev server 中间件（箭头函数，绑定好 this 供 `setupMiddlewares` 直接 unshift）。 */
   readonly middleware = (
     req: { url?: string },
-    res: { statusCode: number; setHeader(name: string, value: string | number): void; end(data?: Buffer | string): void },
+    res: {
+      statusCode: number
+      setHeader(name: string, value: string | number): void
+      end(data?: Buffer | string): void
+    },
     next: () => void,
   ): Promise<void> => this.tool.middleware(req, res, next)
 
@@ -536,6 +562,9 @@ export function registerWebpTool(root: string, tool: WebpTool): void {
 /** loader 侧取插件实例；配置里漏了插件时直接报错，比静默不改写好。 */
 export function webpToolFor(root: string): WebpTool {
   const tool = registeredTools.get(path.resolve(root))
-  if (!tool) throw new Error('[fusim:webp] 找不到 WebpPlugin 实例：webpack 配置的 plugins 里必须有 new WebpPlugin()')
+  if (!tool)
+    throw new Error(
+      '[fusim:webp] 找不到 WebpPlugin 实例：webpack 配置的 plugins 里必须有 new WebpPlugin()',
+    )
   return tool
 }

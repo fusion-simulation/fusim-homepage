@@ -20,6 +20,7 @@ export function useScrollToTop(pathname: string) {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname 只作触发条件，effect 本身不读它
   useEffect(() => {
     // 首次加载交给浏览器自身的滚动恢复（刷新后停留在原位置）
     if (isInitialRender.current) {

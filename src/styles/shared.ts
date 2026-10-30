@@ -1,7 +1,7 @@
 import { css, styled } from 'styled-components'
 import { Link } from 'wouter'
 import { ExternalLinkIcon } from '../components/Icons'
-import { reveal, type RevealProps } from './animation'
+import { type RevealProps, reveal } from './animation'
 
 export { Reveal } from './animation'
 

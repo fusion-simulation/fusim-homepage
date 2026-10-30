@@ -38,7 +38,10 @@ export function DataTree({ nodes, variant = 'site' }: DataTreeProps) {
           <TreeItem key={node.url}>
             <details>
               <TreeSummary>
-                📁 <TreeDirLink href={node.url} target="_blank">{node.name}</TreeDirLink>
+                📁{' '}
+                <TreeDirLink href={node.url} target="_blank">
+                  {node.name}
+                </TreeDirLink>
               </TreeSummary>
               <TreeSubtree>
                 <DataTree nodes={node.children} variant={variant} />

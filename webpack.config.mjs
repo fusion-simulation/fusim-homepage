@@ -69,10 +69,7 @@ export default async (_env, argv) => {
             {
               test: /\.mdx$/,
               // 从右往左：先编译 MDX，再改写其中的图片引用
-              use: [
-                { loader: plugin('webp-loader.ts') },
-                { loader: plugin('mdx.ts') },
-              ],
+              use: [{ loader: plugin('webp-loader.ts') }, { loader: plugin('mdx.ts') }],
             },
             {
               test: /\.[cm]?[jt]sx?$/,
@@ -112,7 +109,8 @@ export default async (_env, argv) => {
       new HtmlWebpackPlugin({
         // 模板仍是仓库根的 index.html：内联首屏样式与主题脚本原样保留，
         // 图片引用走和模块同一份改写集
-        templateContent: () => webp.tool.rewrite(fs.readFileSync(path.join(root, 'index.html'), 'utf8')),
+        templateContent: () =>
+          webp.tool.rewrite(fs.readFileSync(path.join(root, 'index.html'), 'utf8')),
         scriptLoading: 'module',
         inject: true,
       }),
