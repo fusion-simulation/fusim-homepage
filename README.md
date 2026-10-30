@@ -10,7 +10,7 @@
 | 路由 | [wouter](https://github.com/molefrog/wouter)（SPA 客户端路由） |
 | 样式 | [styled-components](https://styled-components.com/)（组件化 CSS-in-JS，仓库内无 `.css` 文件） |
 | 内容 | MDX（`@mdx-js/mdx`）+ YAML frontmatter + GFM + MathJax v4（构建期 SVG） |
-| 编译 | TypeScript 7 只做类型检查；TSX 由 Babel 转译（dev 带 Fast Refresh 插桩） |
+| 编译 | TypeScript 5 只做类型检查；TSX 由 Babel 转译（dev 带 Fast Refresh 插桩） |
 | 构建 | webpack 5（见「构建管线」） |
 
 组件样式是 `src/styles/*.ts` 里导出的 styled 组件，页面直接用组件、变体用 `$` 前缀的 transient props。
@@ -42,8 +42,9 @@ npm test           # webpack-plugins 单元测试（node --test）
 | `webpack` | 打包 + 发静态资源 |
 
 - **TSX 为什么由 Babel 编**：Fast Refresh 需要在编译期往每个组件里插 `$RefreshReg$` / `$RefreshSig$`
-  （Webpack 侧再由 `@pmmmwh/react-refresh-webpack-plugin` 换成运行时调用）。TypeScript 7 的原生包没有
-  这种 transform 接口，`tsc` 只负责类型检查（`npm run build` 的第一步）。
+  （Webpack 侧再由 `@pmmmwh/react-refresh-webpack-plugin` 换成运行时调用）。`tsc` 不做这类插桩，
+  也不该在 dev 里逐模块编 TSX（Fast Refresh 与增量都指望转译器），所以它只负责类型检查
+  （`npm run build` 的第一步）。
 - **MDX 不经过 Babel**：`webpack-plugins/mdx.ts` 用 `jsx: false` 直接产出 `react/jsx-runtime` 调用，
   不需要 JSX 转译；编译后的代码再过 `webpack-plugins/webp-loader.ts` 改写图片引用。
   改 `.mdx` 内容会是整页刷新（没有 refresh 边界）。
