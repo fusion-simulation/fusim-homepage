@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Plugin } from 'vite'
+import type { Compiler } from 'webpack'
 
 /** sharp 构造函数类型：仅类型层面引用，运行时由懒加载动态 import 提供。 */
 type SharpFactory = (typeof import('sharp'))['default']
@@ -11,7 +11,7 @@ let sharpLoader: () => Promise<SharpFactory> = async () => (await import('sharp'
 /** 已加载的 sharp 构造函数；换加载器或加载失败时清空以便重试。 */
 let sharpFactory: SharpFactory | undefined
 
-/** 注入替代的 sharp 加载器并返回原加载器（用于恢复），让 vite.config.ts 的加载不依赖 sharp 的好坏。 */
+/** 注入替代的 sharp 加载器并返回原加载器（用于恢复），让 webpack.config.mjs 的加载不依赖 sharp 的好坏。 */
 export function setSharpLoader(loader: () => Promise<SharpFactory>): () => Promise<SharpFactory> {
   const previous = sharpLoader
   sharpLoader = loader
@@ -255,7 +255,7 @@ const DEFAULTS: EncodeOptions = { quality: 75, effort: 4 }
 /** 每批并发转码的张数：动图动辄 43 MB，控制同时驻留内存的规模。 */
 const BATCH_SIZE = 4
 
-/** 一次成功转码的记录，`closeBundle` 只把成功项拷进 outDir。 */
+/** 一次成功转码的记录：发布阶段只把成功项写进产物。 */
 type Converted = {
   entry: ImageEntry
   cachePath: string
@@ -282,214 +282,260 @@ export function formatPercent(sourceBytes: number, outputBytes: number): string 
   return percent >= 0 ? `-${percent}%` : `+${-percent}%`
 }
 
-/** 插件选项：转码质量 / 压缩投入 / 缓存目录。 */
-export type WebpOptions = { quality?: number; effort?: number; cacheDir?: string }
+/** 插件 / loader 选项：转码质量、压缩投入、缓存目录；`serve` 表示跑在 dev server 下。 */
+export type WebpToolOptions = {
+  quality?: number
+  effort?: number
+  cacheDir?: string
+  serve?: boolean
+}
+
+/** 插件在 apply 时注入的目录：loader / 中间件 / 资源发布共用同一份。 */
+export type WebpBindings = {
+  publicDir: string
+  cacheDir: string
+}
+
+/** 默认缓存目录（相对项目根目录）：放 publicDir 里会被当成源图扫描。 */
+export const DEFAULT_CACHE_DIR = 'node_modules/.cache/fusim-webp'
+
+/** dev 中间件重扫的最小间隔：一批图片请求只重扫一次。 */
+const RESCAN_INTERVAL_MS = 1000
 
 /**
- * Vite 插件：build 时把 `public/` 里的图片转成 WebP 并改写全部引用。
+ * WebP 管线的全部状态与动作，打包器无关的部分都留在这里：
  *
- * - `enforce: 'pre'`：transform 必须赶在 `vite:css` 把 `url(/img/…)` 换成 `__VITE_PUBLIC_ASSET__`
- *   占位符之前跑；MDX 插件同为 pre 且在 vite.config.ts 的数组里更靠前，编译后的 MDX 仍会先到我们这；
- * - `transform` / `transformIndexHtml` 把代码里的源图 URL 换成 `.webp`（依据 `buildStart` 定好的改写集）；
- * - `buildStart` 扫描并按阶段确定改写集：client 趟只含本趟成功转码的条目，SSR 趟只含缓存目录里
- *   已有文件的条目（两趟构建是独立进程，缓存目录是唯一共享的事实），dev 全量放行，实际字节
- *   由 `configureServer` 中间件按需补上；
- * - `configureServer`（dev）注册中间件：请求命中改写目标且 `public/` 里没有该 `.webp` 时，
- *   走 `ensureWebp` 取缓存或现转后直接回字节；watcher 在源图新增/删除时重扫、同步 dev 改写集
- *   并发整页刷新，实际字节由中间件按需补上；
- * - `closeBundle` 把转好的文件拷进 outDir、删掉原位拷贝的源图并打印报告；报告只统计发布成功的
- *   条目，有拷贝 / 删除失败时仍在打印报告后汇总抛错，让构建明确失败；
+ * - `prepare()`：每次编译前扫描 `public/`，build 时把源图转码进缓存目录，
+ *   并把「本趟转码成功」的条目定为改写集（失败条目保持原引用，产物里保留可用原图）；
+ * - `rewrite()`：把模块 / HTML 里的源图 URL 换成 `.webp`；
+ * - `assets()`：build 阶段真正要写进产物的文件（转好的 `.webp`，其余 public 文件原样）；
+ * - `middleware()`：dev 下请求命中改写目标且 `public/` 里没有该 `.webp` 时，取缓存或现转后回字节。
  */
-export function webpImages(options: WebpOptions = {}): Plugin {
-  const encodeOptions: EncodeOptions = {
-    quality: options.quality ?? DEFAULTS.quality,
-    effort: options.effort ?? DEFAULTS.effort,
+export class WebpTool {
+  readonly encodeOptions: EncodeOptions
+  /** 是否跑在 dev server 下：没有预转换，字节由中间件按需补。 */
+  readonly serve: boolean
+  readonly cacheDirOption: string | undefined
+
+  private bindings: WebpBindings | undefined
+  /** 扫描结果：每次 rescan 都重扫，转码与改写集都从这里取。 */
+  entries: ImageEntry[] = []
+  /** 本轮成功转码的项，每次 prepare 清空：watch 反复构建时不累加旧结果。 */
+  private converted: Converted[] = []
+  /** 本轮转码总耗时（含缓存读写），报告用。 */
+  private conversionMs = 0
+  /** 改写集合：build = 本趟成功转码的条目；serve = 全部条目。 */
+  rewriteEntries: ImageEntry[] = []
+  private lastScanAt = 0
+
+  constructor(options: WebpToolOptions = {}) {
+    this.encodeOptions = {
+      quality: options.quality ?? DEFAULTS.quality,
+      effort: options.effort ?? DEFAULTS.effort,
+    }
+    this.serve = options.serve ?? false
+    this.cacheDirOption = options.cacheDir
   }
 
-  let publicDir = ''
-  let outDir = ''
-  let command: 'build' | 'serve' = 'build'
-  let cacheDir = ''
-  let isSsr = false
+  /** 由 webpack 插件注入目录；重复调用幂等。 */
+  bind(bindings: WebpBindings): void {
+    this.bindings = bindings
+    this.lastScanAt = 0
+  }
 
-  /** 扫描结果：永不删，每次 buildStart 都重扫；转码与 SSR/dev 的改写集都从这里取。 */
-  let entries: ImageEntry[] = []
-  /** 本轮成功转码的项，每次 buildStart 清空：--watch 反复构建时不累加旧结果。 */
-  let converted: Converted[] = []
-  /** 本轮转码失败的源图（sourceRel），每轮 buildStart 清空、转码成功即除名，只作记录与告警定位。 */
-  let failed = new Set<string>()
-  /** 本轮转码总耗时（含缓存读写），closeBundle 报告用，每轮 buildStart 清零。 */
-  let conversionMs = 0
-  /**
-   * 改写集合：`buildStart` 按（command × isSsr）算一次，`transform` / `transformIndexHtml` 只读这份。
-   * client 趟 = 本趟成功转码（含缓存命中）的条目；SSR 趟 = 缓存文件已存在的条目；dev = 全部条目。
-   */
-  let rewriteEntries: ImageEntry[] = []
+  private get env(): WebpBindings {
+    if (!this.bindings) throw new Error('[fusim:webp] 目录尚未绑定：插件必须先 apply 到 webpack')
+    return this.bindings
+  }
 
-  /** 重新扫描 `public/`；dev（serve）下载重扫还要同步 dev 改写集，脱离 buildStart 的快照。 */
-  function refresh(): void {
-    const scan = collectImageEntries(publicDir)
-    entries = scan.entries
+  /** 重扫 `public/`；dev 下改写集必须与扫描实时同步，否则新增图片永远不被改写、删掉的还能被改写。 */
+  rescan(): void {
+    const scan = collectImageEntries(this.env.publicDir)
+    this.entries = scan.entries
+    this.lastScanAt = Date.now()
     for (const item of scan.skipped) {
       const reason = item.reason === 'target-exists' ? 'public 里已有同名 .webp' : '目标已被同名不同扩展名的源图占用'
       console.warn(`[fusim:webp] 跳过 ${item.sourceRel}：${reason}，保留原图。`)
     }
-    // dev 改写集 = 全部条目，且要与扫描实时同步：否则新增图片永远不被改写、删掉的还能被改写
-    if (command === 'serve') rewriteEntries = entries
+    // dev 改写集 = 全部条目（实际字节由中间件按需补上）
+    if (this.serve) this.rewriteEntries = this.entries
   }
 
-  return {
-    name: 'fusim:webp',
-    // 前置到 vite:css 之前：CSS 里的 url() 要在它被换成 __VITE_PUBLIC_ASSET__ 占位符前改写掉
-    enforce: 'pre',
-    configResolved(config) {
-      publicDir = config.publicDir
-      outDir = path.resolve(config.root, config.build.outDir)
-      command = config.command
-      isSsr = Boolean(config.build.ssr)
-      // 缓存目录默认放 node_modules/.cache：放 publicDir 里会被当成源图扫描
-      cacheDir = options.cacheDir ?? path.join(config.root, 'node_modules/.cache/fusim-webp')
+  /** 每次 webpack 编译前调用：扫描 +（build）转码。 */
+  async prepare(): Promise<void> {
+    this.rescan()
+    // 每轮构建开始先清空上一轮状态：watch 下同一实例会反复触发，不能累加旧结果
+    this.converted = []
+    this.conversionMs = 0
+
+    if (this.serve) return
+
+    const startedAt = Date.now()
+    for (let index = 0; index < this.entries.length; index += BATCH_SIZE) {
+      await Promise.all(this.entries.slice(index, index + BATCH_SIZE).map(async (entry) => {
+        try {
+          const stats = fs.statSync(entry.sourceAbs)
+          const { data } = await ensureWebp(entry, this.env.cacheDir, this.encodeOptions)
+          this.converted.push({
+            entry,
+            cachePath: cachePathFor(this.env.cacheDir, entry, stats, this.encodeOptions),
+            sourceBytes: stats.size,
+            outputBytes: data.length,
+          })
+        } catch (error) {
+          // 失败的源图不进改写集：产物里保留原图，引用也保持原样
+          console.warn(error instanceof Error ? error.message : String(error))
+        }
+      }))
+    }
+    this.conversionMs = Date.now() - startedAt
+    // 改写集只从本轮成功转码（含缓存命中）的条目里取
+    this.rewriteEntries = this.converted.map((item) => item.entry)
+  }
+
+  /** 把模块 / HTML 里的源图 URL 换成 `.webp`；没有改动时原样返回。 */
+  rewrite(code: string): string {
+    return rewriteReferences(code, this.rewriteEntries) ?? code
+  }
+
+  /** build：要写进产物的文件。转码成功的图片换成 `.webp`，其余 public 文件原样拷贝。 */
+  assets(): Array<{ name: string; data: Buffer }> {
+    const bySource = new Map(this.converted.map((item) => [item.entry.sourceRel, item]))
+
+    return scanFiles(this.env.publicDir).map((file) => {
+      const converted = bySource.get(file.rel)
+      // 缓存文件读不到就让构建失败：引用已经改成 .webp，产物里缺文件比报错更糟
+      return converted
+        ? { name: converted.entry.targetRel, data: fs.readFileSync(converted.cachePath) }
+        : { name: file.rel, data: fs.readFileSync(file.abs) }
+    })
+  }
+
+  /** 打印转码报告：只统计真正写进产物的条目。 */
+  report(): void {
+    if (this.converted.length === 0) return
+
+    const totalSource = this.converted.reduce((sum, item) => sum + item.sourceBytes, 0)
+    const totalOutput = this.converted.reduce((sum, item) => sum + item.outputBytes, 0)
+    console.log(`[fusim:webp] ${this.converted.length} 张 · ${formatBytes(totalSource)} → ${formatBytes(totalOutput)} (${formatPercent(totalSource, totalOutput)}) · ${(this.conversionMs / 1000).toFixed(1)}s`)
+    for (const item of this.converted) {
+      console.log(`[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(item.outputBytes)}`)
+    }
+  }
+
+  /**
+   * dev 中间件。必须挂在静态服务之前（config 里 `middlewares.unshift`）：
+   * `public/` 里没有 `.webp` 文件，排在后面的话请求先被静态服务 404，永远轮不到这里。
+   */
+  async middleware(
+    req: { url?: string },
+    res: {
+      statusCode: number
+      setHeader(name: string, value: string | number): void
+      end(data?: Buffer | string): void
     },
-    async buildStart() {
-      refresh()
-      // 每轮构建开始先清空上一轮状态：--watch 下同一实例会反复触发，不能累加旧结果
-      converted = []
-      failed = new Set<string>()
-      conversionMs = 0
+    next: () => void,
+  ): Promise<void> {
+    let pathname = ''
+    try {
+      // 只按 pathname 查找，query / hash 与改写规则无关；req.url 可能是 `*` 等非法形式，解析失败交回后续中间件
+      pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://localhost').pathname)
+    } catch {
+      return next()
+    }
 
-      if (command !== 'build') {
-        // dev/serve：没有预转换，按需转码在 `configureServer` 中间件里做，全部条目放行改写
-        rewriteEntries = entries
-        return
-      }
+    let entry = this.entries.find((item) => item.targetUrl === pathname)
+    // dev 里新增的源图不会触发重扫：命中 .webp 就补扫一次，让新文件立刻可用
+    if (!entry && pathname.endsWith(WEBP_EXTENSION) && Date.now() - this.lastScanAt > RESCAN_INTERVAL_MS) {
+      this.rescan()
+      entry = this.entries.find((item) => item.targetUrl === pathname)
+    }
+    // 未命中改写目标，或 public 里已有同名 .webp（用户自己放的，插件不接管），按原样继续走静态服务
+    if (!entry || fs.existsSync(entry.targetAbs)) return next()
 
-      if (isSsr) {
-        // SSR 构建是独立进程，本趟不转码（converted 恒为空）；两趟构建唯一共享的事实是缓存目录，
-        // 缓存文件存在即说明 client 趟转码成功——失败条目的缓存键带着不同的 mtime/size，自然落空。
-        // 这样 client 趟保留的原图在预渲染页里保持原引用，不会 404
-        rewriteEntries = entries.filter((entry) =>
-          fs.existsSync(cachePathFor(cacheDir, entry, fs.statSync(entry.sourceAbs), encodeOptions)))
-        return
-      }
+    try {
+      const { data } = await ensureWebp(entry, this.env.cacheDir, this.encodeOptions)
+      res.setHeader('Content-Type', 'image/webp')
+      res.setHeader('Content-Length', data.length)
+      res.setHeader('Cache-Control', 'no-cache')
+      res.end(data)
+    } catch (error) {
+      // 转码失败不能把异常抛出中间件：connect 不会接住异步抛错，会让 dev server 整个崩掉，
+      // 只回 500 文本把原因带出来即可。
+      const message = error instanceof Error ? error.message : String(error)
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end(message.startsWith('[fusim:webp]') ? message : `[fusim:webp] ${message}`)
+    }
+  }
+}
 
-      const startedAt = Date.now()
-      for (let index = 0; index < entries.length; index += BATCH_SIZE) {
-        await Promise.all(entries.slice(index, index + BATCH_SIZE).map(async (entry) => {
-          try {
-            const stats = fs.statSync(entry.sourceAbs)
-            const { data } = await ensureWebp(entry, cacheDir, encodeOptions)
-            converted.push({
-              entry,
-              cachePath: cachePathFor(cacheDir, entry, stats, encodeOptions),
-              sourceBytes: stats.size,
-              outputBytes: data.length,
-            })
-            // 转码成功就从 failed 除名：防同轮先败后成或上一轮残留影响判断
-            failed.delete(entry.sourceRel)
-          } catch (error) {
-            failed.add(entry.sourceRel)
-            console.warn(error instanceof Error ? error.message : String(error))
+/**
+ * webpack 插件：编译前转码 + 把 public/ 与转好的 `.webp` 一起写进产物。
+ *
+ * 与 Vite 版的差别只在接线方式：改写改由 `webp-loader.ts` 在每个模块上做，
+ * `index.html` 由 `webpack.config.mjs` 的 templateContent 调 `tool.rewrite`，
+ * public 的拷贝换成 `processAssets` 阶段 `emitAsset`（转码成功的图片只发 `.webp`，不再发原图）。
+ */
+export class WebpPlugin {
+  readonly tool: WebpTool
+
+  constructor(options: WebpToolOptions = {}) {
+    this.tool = new WebpTool(options)
+  }
+
+  /** dev server 中间件（箭头函数，绑定好 this 供 `setupMiddlewares` 直接 unshift）。 */
+  readonly middleware = (
+    req: { url?: string },
+    res: { statusCode: number; setHeader(name: string, value: string | number): void; end(data?: Buffer | string): void },
+    next: () => void,
+  ): Promise<void> => this.tool.middleware(req, res, next)
+
+  apply(compiler: Compiler): void {
+    const root = compiler.context
+    registerWebpTool(root, this.tool)
+
+    compiler.hooks.beforeCompile.tapPromise('fusim:webp', async () => {
+      this.tool.bind({
+        publicDir: path.join(root, 'public'),
+        cacheDir: path.resolve(root, this.tool.cacheDirOption ?? DEFAULT_CACHE_DIR),
+      })
+      await this.tool.prepare()
+    })
+
+    compiler.hooks.thisCompilation.tap('fusim:webp', (compilation) => {
+      const { Compilation, sources } = compilation.compiler.webpack
+
+      compilation.hooks.processAssets.tap(
+        { name: 'fusim:webp', stage: Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL },
+        () => {
+          // dev 产物走内存，public 由 dev server 的静态服务提供，不在这里发
+          if (this.tool.serve) return
+
+          for (const asset of this.tool.assets()) {
+            compilation.emitAsset(asset.name, new sources.RawSource(asset.data))
           }
-        }))
-      }
-      conversionMs = Date.now() - startedAt
-      // 改写集 = 本趟成功转码（含缓存命中）的条目，只从这里取，不经 entries；
-      // 失败条目保持原引用，dist 保留可用原图，SSR 趟也能靠「缓存不存在」还原同一事实
-      rewriteEntries = converted.map((item) => item.entry)
-    },
-    transform(code: string) {
-      return rewriteReferences(code, rewriteEntries)
-    },
-    transformIndexHtml(html: string) {
-      return rewriteReferences(html, rewriteEntries) ?? undefined
-    },
-    configureServer(server) {
-      refresh()
-      // 直接 use（不返回后置函数）才会排在 Vite 内部静态服务之前——public 里没有 .webp 文件，
-      // 排在后面的话请求先被静态服务 404，永远轮不到这里
-      server.middlewares.use(async (req, res, next) => {
-        let pathname = ''
-        try {
-          // 只按 pathname 查找，query / hash 与改写规则无关；req.url 可能是 `*` 等非法形式，解析失败交回后续中间件
-          pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://localhost').pathname)
-        } catch {
-          return next()
-        }
-        const entry = entries.find((item) => item.targetUrl === pathname)
-        // 未命中改写目标，或 public 里已有同名 .webp（用户自己放的，插件不接管），按原样继续走静态服务
-        if (!entry || fs.existsSync(entry.targetAbs)) return next()
-
-        try {
-          const { data } = await ensureWebp(entry, cacheDir, encodeOptions)
-          res.setHeader('Content-Type', 'image/webp')
-          res.setHeader('Content-Length', data.length)
-          res.setHeader('Cache-Control', 'no-cache')
-          res.end(data)
-        } catch (error) {
-          // 转码失败不能把异常抛出中间件：connect 不会接住异步抛错，会让 dev server 整个崩掉，
-          // 只回 500 文本把原因带出来即可。
-          const message = error instanceof Error ? error.message : String(error)
-          res.statusCode = 500
-          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-          res.end(message.startsWith('[fusim:webp]') ? message : `[fusim:webp] ${message}`)
-        }
-      })
-      // 源图新增/删除时重扫让改写目标跟着变；change 不重扫——缓存键本身含 mtime，
-      // 内容一变缓存必然 miss，请求来时按需重转。改写集变了要发整页刷新，
-      // 让页面里的引用重新走 transform
-      server.watcher.on('all', (event, file) => {
-        if ((event === 'add' || event === 'unlink') && file.startsWith(publicDir)) {
-          refresh()
-          server.ws.send({ type: 'full-reload' })
-        }
-      })
-    },
-    closeBundle() {
-      if (command !== 'build' || isSsr) return
-
-      // 逐条处理：拷贝失败只警告并继续，不能拖垮其余文件，更不能删掉没拷成功的原图；
-      // 报告最后打印（只算发布成功的条目），再有任何失败都汇总成一个 Error 让构建失败
-      const published: Converted[] = []
-      const failedRels: string[] = []
-      for (const item of converted) {
-        try {
-          // public/ 资源不进打包图，直接把转好的文件落盘到 outDir
-          const targetAbs = path.join(outDir, item.entry.targetRel)
-          fs.mkdirSync(path.dirname(targetAbs), { recursive: true })
-          fs.copyFileSync(item.cachePath, targetAbs)
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          failedRels.push(item.entry.sourceRel)
-          console.warn(`[fusim:webp] 拷贝失败 ${item.entry.sourceRel}：${message}，保留原图备查。`)
-          continue // 拷贝没成功就删原图会让 .webp 与原图都不在 dist
-        }
-        try {
-          const sourceAbs = path.join(outDir, item.entry.sourceRel)
-          if (fs.existsSync(sourceAbs)) fs.unlinkSync(sourceAbs)
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          failedRels.push(item.entry.sourceRel)
-          console.warn(`[fusim:webp] 删除原图失败 ${item.entry.sourceRel}：${message}`)
-        }
-        // 拷贝成功（含删除失败）就计入了发布：.webp 已落盘，报告应统计它
-        published.push(item)
-      }
-
-      // 报告只统计真正发布（拷进 outDir）的条目：失败项没进 dist，不算张数也不算省下的字节
-      if (published.length > 0) {
-        const totalSource = published.reduce((sum, item) => sum + item.sourceBytes, 0)
-        const totalOutput = published.reduce((sum, item) => sum + item.outputBytes, 0)
-        console.log(`[fusim:webp] ${published.length} 张 · ${formatBytes(totalSource)} → ${formatBytes(totalOutput)} (${formatPercent(totalSource, totalOutput)}) · ${(conversionMs / 1000).toFixed(1)}s`)
-        for (const item of published) {
-          console.log(`[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(item.outputBytes)}`)
-        }
-      }
-
-      // transform 已经把引用改成 .webp 却没发布成功，继续让构建过绿会产出链到不存在文件的站点：
-      // 汇总失败条目数明确失败，构建输出去修（磁盘满 / 权限等）
-      if (failedRels.length > 0) {
-        throw new Error(`[fusim:webp] ${failedRels.length} 个条目发布失败（拷贝 .webp 或删除原图），构建判败：${failedRels.join('、')}`)
-      }
-    },
+          this.tool.report()
+        },
+      )
+    })
   }
+}
+
+/**
+ * 插件实例登记表：loader 只拿得到项目根目录，靠它找回插件里那个已经 bind 过目录的实例
+ * （改写集在 `prepare()` 里定，loader 只读）。
+ */
+const registeredTools = new Map<string, WebpTool>()
+
+/** 由 `WebpPlugin.apply` 登记，保证 loader 与插件共用同一份状态。 */
+export function registerWebpTool(root: string, tool: WebpTool): void {
+  registeredTools.set(path.resolve(root), tool)
+}
+
+/** loader 侧取插件实例；配置里漏了插件时直接报错，比静默不改写好。 */
+export function webpToolFor(root: string): WebpTool {
+  const tool = registeredTools.get(path.resolve(root))
+  if (!tool) throw new Error('[fusim:webp] 找不到 WebpPlugin 实例：webpack 配置的 plugins 里必须有 new WebpPlugin()')
+  return tool
 }

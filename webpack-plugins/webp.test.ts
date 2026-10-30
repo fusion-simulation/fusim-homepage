@@ -13,7 +13,7 @@ import {
   formatPercent,
   rewriteReferences,
   setSharpLoader,
-  webpImages,
+  WebpTool,
 } from './webp.ts'
 
 const dirs: string[] = []
@@ -248,25 +248,7 @@ async function writePng(abs: string) {
   await sharp({ create: { width: 16, height: 16, channels: 3, background: '#abcdef' } }).png().toFile(abs)
 }
 
-/// dev 中间件测试：用假 server 对象捕获 configureServer 里注册的处理器，不起真实 HTTP 服务
-function makeFakeServer() {
-  let handler: (...args: unknown[]) => unknown = () => {}
-  const watcherHandlers = new Map<string, (...args: unknown[]) => void>()
-  const wsSent: unknown[] = []
-  return {
-    get handler() { return handler },
-    middlewares: {
-      use(fn: (...args: unknown[]) => unknown) { handler = fn },
-    },
-    watcher: {
-      on(event: string, fn: (...args: unknown[]) => void) { watcherHandlers.set(event, fn) },
-    },
-    ws: { send: (message: unknown) => void wsSent.push(message) },
-    get wsSent() { return wsSent },
-    notify(event: string, file: string) { watcherHandlers.get('all')?.(event, file) },
-  }
-}
-
+/// dev 中间件测试：直接调 tool.middleware，不起真实 HTTP 服务
 function makeRes() {
   const res: {
     statusCode: number
@@ -284,19 +266,31 @@ function makeRes() {
   return res
 }
 
+/** 造一个绑好目录的工具实例；build 用 serve=false，dev 用 serve=true。 */
+function makeTool(publicDir: string, options: { serve?: boolean; cacheDir?: string } = {}): WebpTool {
+  // 缓存目录必须在 public 之外，否则会被当成源图扫描进产物
+  const cacheDir = options.cacheDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'fusim-webp-cache-'))
+  if (!options.cacheDir) dirs.push(cacheDir)
+  const tool = new WebpTool({ serve: options.serve, cacheDir })
+  tool.bind({ publicDir, cacheDir })
+  return tool
+}
+
+function makeRequest(tool: WebpTool, nextCalls: string[]) {
+  return (url: string) => {
+    const res = makeRes()
+    const next = () => void nextCalls.push('/next')
+    return tool.middleware({ url }, res, next).then(() => res)
+  }
+}
+
 test('dev 中间件：改写目标按需转码回 WebP 字节且命中缓存，非目标放行', async () => {
   const dir = makePublicDir([])
   await writePng(path.join(dir, 'img/a.png'))
-  const plugin = makePlugin(dir, 'serve')
-  const server = makeFakeServer()
-  ;(plugin.configureServer as any)(server)
-
+  const tool = makeTool(dir, { serve: true })
+  await tool.prepare()
   const nextCalls: string[] = []
-  const next = () => void nextCalls.push('/next')
-  const request = (url: string): Promise<any> => {
-    const res = makeRes()
-    return Promise.resolve(server.handler({ url }, res, next)).then(() => res)
-  }
+  const request = makeRequest(tool, nextCalls)
 
   const first = await request('/img/a.webp?v=1')
   assert.equal(first.statusCode, 200)
@@ -307,206 +301,116 @@ test('dev 中间件：改写目标按需转码回 WebP 字节且命中缓存，�
   // 第二次请求（不带 query）应命中缓存，字节完全一致
   const second = await request('/img/a.webp')
   assert.deepEqual(second.body, first.body)
-  // 非改写目标（源图本身）放行给 Vite 静态服务
+  // 非改写目标（源图本身）放行给静态服务
   await request('/img/a.png')
   assert.deepEqual(nextCalls, ['/next'])
 })
 
-test('dev 中间件：public 已有 .webp 放行、坏图回 500 文本、watcher add 重扫而 change 不扫', async () => {
+test('dev 中间件：public 已有 .webp 放行、坏图回 500 文本、新增源图重扫后可用', async () => {
   const dir = makePublicDir([])
   await writePng(path.join(dir, 'img/a.png'))
   fs.writeFileSync(path.join(dir, 'broken.png'), '')
-  const plugin = makePlugin(dir, 'serve')
-  const server = makeFakeServer()
-  ;(plugin.configureServer as any)(server)
+  const tool = makeTool(dir, { serve: true })
+  await tool.prepare()
   const nextCalls: string[] = []
-  const next = () => void nextCalls.push('/next')
-  const request = (url: string): Promise<any> => {
-    const res = makeRes()
-    return Promise.resolve(server.handler({ url }, res, next)).then(() => res)
-  }
+  const request = makeRequest(tool, nextCalls)
 
   // 坏图：转码失败不能把异常抛出中间件，回 500 文本
   const failed = await request('/broken.webp')
   assert.equal(failed.statusCode, 500)
   assert.equal(String(failed.body).startsWith('[fusim:webp]'), true)
 
-  // configureServer 之后 public 里出现的 .webp 属于用户资源，插件不接管
+  // public 里出现的 .webp 属于用户资源，插件不接管
   await writePng(path.join(dir, 'img/a.webp'))
   await request('/img/a.webp')
   assert.equal(nextCalls.length, 1)
 
-  // change 不重扫：新文件在 change 事件后仍不可见
+  // 新增源图：重扫间隔内还没进改写集，先放行
   await writePng(path.join(dir, 'img/c.png'))
-  server.notify('change', path.join(dir, 'img/c.png'))
   await request('/img/c.webp')
   assert.equal(nextCalls.length, 2)
-  // add 且路径在 publicDir 下才重扫：新源图立即可按需服务（回包非空即实际服务过）
-  server.notify('add', path.join(dir, 'img/c.png'))
+
+  // 过了重扫间隔，中间件补扫后按需服务新图片
+  await new Promise((resolve) => setTimeout(resolve, 1100))
   const added = await request('/img/c.webp')
-  assert.notEqual(added.body, null)
-  // add 但路径不在 publicDir 下：不重扫，仍放行
-  const outside = makePublicDir(['outside.png'])
-  server.notify('add', path.join(outside, 'outside.png'))
-  await request('/outside.webp')
-  assert.deepEqual(nextCalls, ['/next', '/next', '/next'])
+  assert.equal(added.statusCode, 200)
+  assert.equal((await sharp(added.body as Buffer).metadata()).format, 'webp')
+  assert.equal(nextCalls.length, 2)
 })
 
-test('dev：源图增删后重扫同步 dev 改写集并整页刷新', async () => {
+test('dev：改写集随重扫同步，新增/删除源图即时生效', async () => {
   const dir = makePublicDir([])
   await writePng(path.join(dir, 'img/a.png'))
-  const plugin = makePlugin(dir, 'serve')
-  const server = makeFakeServer()
-  ;(plugin.configureServer as any)(server)
-  await (plugin.buildStart as any).call({})
-  assert.equal((plugin.transform as any).call({}, 'src="/img/a.png"', '/x.tsx'), 'src="/img/a.webp"')
+  const tool = makeTool(dir, { serve: true })
+  await tool.prepare()
+  assert.equal(tool.rewrite('src="/img/a.png"'), 'src="/img/a.webp"')
 
-  // watcher 走到的重扫路径：新增源图后改写集必须带上它，并通知整页刷新
   await writePng(path.join(dir, 'img/new.png'))
-  server.notify('add', path.join(dir, 'img/new.png'))
-  assert.equal((plugin.transform as any).call({}, 'src="/img/new.png"', '/x.tsx'), 'src="/img/new.webp"')
-  assert.deepEqual(server.wsSent, [{ type: 'full-reload' }])
+  // 没有重扫时旧改写集不含新文件
+  assert.equal(tool.rewrite('src="/img/new.png"'), 'src="/img/new.png"')
+  tool.rescan()
+  assert.equal(tool.rewrite('src="/img/new.png"'), 'src="/img/new.webp"')
 
-  // 删除后同样重扫：改写集收回，再次整页刷新
   fs.unlinkSync(path.join(dir, 'img/new.png'))
-  server.notify('unlink', path.join(dir, 'img/new.png'))
-  assert.equal((plugin.transform as any).call({}, 'src="/img/new.png"', '/x.tsx'), null)
-  assert.equal(server.wsSent.length, 2)
+  tool.rescan()
+  assert.equal(tool.rewrite('src="/img/new.png"'), 'src="/img/new.png"')
 })
 
-function makePlugin(publicDir: string, command: 'build' | 'serve', options: { ssr?: boolean; cacheDir?: string } = {}) {
-  const plugin = webpImages({ cacheDir: options.cacheDir })
-  ;(plugin.configResolved as any)({
-    root: publicDir,
-    publicDir,
-    command,
-    build: { outDir: path.join(publicDir, 'dist'), ssr: options.ssr ?? false },
-  })
-  return plugin
-}
-
-test('build 时 transform 改写已转换的引用', async () => {
+test('build：prepare 后 rewrite 改写引用，CSS 里的 url() 与编译后的模块源码同样处理', async () => {
   const dir = makePublicDir([])
   await writePng(path.join(dir, 'img/a.png'))
-  const plugin = makePlugin(dir, 'build')
-  await (plugin.buildStart as any).call({})
-  assert.equal((plugin.transform as any).call({}, 'src="/img/a.png"', '/x.tsx'), 'src="/img/a.webp"')
-  assert.equal((plugin.transform as any).call({}, 'const a = 1', '/x.tsx'), null)
+  const tool = makeTool(dir)
+  await tool.prepare()
+  assert.equal(tool.rewrite('a { background: url(/img/a.png) }'), 'a { background: url(/img/a.webp) }')
+  assert.equal(tool.rewrite('src="/img/a.png"'), 'src="/img/a.webp"')
+  assert.equal(tool.rewrite('const a = 1'), 'const a = 1')
 })
 
-test('插件前置（enforce: pre）到 vite:css 之前，CSS 源码里的 url() 也被改写', async () => {
-  // vite:css 会先把 url(/img/a.png) 换成 __VITE_PUBLIC_ASSET__ 占位符；不前置就赶不上了
-  assert.equal(webpImages().enforce, 'pre')
-  const dir = makePublicDir([])
-  await writePng(path.join(dir, 'img/a.png'))
-  const plugin = makePlugin(dir, 'build')
-  await (plugin.buildStart as any).call({})
-  assert.equal((plugin.transform as any).call({}, 'a { background: url(/img/a.png) }', '/src/x.css'), 'a { background: url(/img/a.webp) }')
-})
-
-test('转码失败的图片不参与 build 改写（原图保留）', async () => {
+test('build：转码失败的图片不参与改写（原图保留）', async () => {
   const dir = makePublicDir(['img/broken.png'])  // 空文件
-  const plugin = makePlugin(dir, 'build')
+  const tool = makeTool(dir)
   const warnings: unknown[][] = []
   const origWarn = console.warn
   console.warn = (...args: unknown[]) => void warnings.push(args)
-  try { await (plugin.buildStart as any).call({}) } finally { console.warn = origWarn }
-  assert.equal((plugin.transform as any).call({}, 'src="/img/broken.png"', '/x.tsx'), null)
+  try { await tool.prepare() } finally { console.warn = origWarn }
+  assert.equal(tool.rewrite('src="/img/broken.png"'), 'src="/img/broken.png"')
   assert.equal(warnings.length, 1)
 })
 
-test('SSR 独立进程只改写缓存里已有的条目，client 趟失败的保持原引用', async () => {
-  const dir = makePublicDir(['broken.png'])  // 空文件
-  await writePng(path.join(dir, 'a.png'))
-  // build:ssg 的两趟是不同进程、插件状态互不相通，共享的只有 cacheDir，故显式传入
-  const cacheDir = path.join(dir, 'cache')
-  const warnings: unknown[][] = []
+test('build：assets 只发 .webp，失败的源图与其它 public 文件原样', async () => {
+  const dir = makePublicDir(['img/broken.png', 'favicon.svg'])
+  await writePng(path.join(dir, 'img/a.png'))
+  const tool = makeTool(dir)
   const origWarn = console.warn
-  console.warn = (...args: unknown[]) => void warnings.push(args)
-  // 第一趟 · client：a.png 转码成功写入缓存，broken.png 失败
-  const client = makePlugin(dir, 'build', { cacheDir })
-  try { await (client.buildStart as any).call({}) } finally { console.warn = origWarn }
-  assert.equal(warnings.length, 1)
-  // 第二趟 · SSR：新进程 failed 为空，只认缓存目录里存在的事实
-  const ssr = makePlugin(dir, 'build', { cacheDir, ssr: true })
-  await (ssr.buildStart as any).call({})
-  assert.equal((ssr.transform as any).call({}, 'src="/a.png"', '/x.tsx'), 'src="/a.webp"')
-  assert.equal((ssr.transform as any).call({}, 'src="/broken.png"', '/x.tsx'), null)
+  console.warn = () => {}
+  try { await tool.prepare() } finally { console.warn = origWarn }
+
+  const assets = tool.assets()
+  const names = assets.map((asset) => asset.name).sort()
+  assert.deepEqual(names, ['favicon.svg', 'img/a.webp', 'img/broken.png'])
+  const webp = assets.find((asset) => asset.name === 'img/a.webp')
+  assert.equal((await sharp(webp!.data).metadata()).format, 'webp')
 })
 
-test('同一实例连续两轮构建，状态重置后报告张数不累加', async () => {
+test('同一实例连续两轮构建，报告张数不累加', async () => {
   const dir = makePublicDir([])
   await writePng(path.join(dir, 'img/a.png'))
-  const plugin = makePlugin(dir, 'build')
+  const tool = makeTool(dir)
   const logs: unknown[][] = []
   const origLog = console.log
   console.log = (...args: unknown[]) => void logs.push(args)
   try {
-    await (plugin.buildStart as any).call({})
-    ;(plugin.closeBundle as any).call({})
-    await (plugin.buildStart as any).call({})
-    ;(plugin.closeBundle as any).call({})
+    await tool.prepare()
+    tool.report()
+    await tool.prepare()
+    tool.report()
   } finally { console.log = origLog }
+
   const reportLines = logs.map((args) => String(args[0]))
   const counts = reportLines.filter((line) => line.includes('张'))
   assert.equal(counts.length, 2)
   assert.equal(counts.every((line) => line.includes('1 张')), true)
   assert.equal(reportLines.some((line) => line.includes('2 张')), false)
-})
-
-test('closeBundle 拷贝失败：报告只算发布条目，随后抛错中止构建', async () => {
-  const dir = makePublicDir([])
-  await writePng(path.join(dir, 'img/a.png'))
-  await writePng(path.join(dir, 'img/b.png'))
-  const plugin = makePlugin(dir, 'build')
-  await (plugin.buildStart as any).call({})
-  // 模拟 copyPublicDir 先把原图拷进 outDir
-  fs.mkdirSync(path.join(dir, 'dist/img'), { recursive: true })
-  fs.copyFileSync(path.join(dir, 'img/a.png'), path.join(dir, 'dist/img/a.png'))
-  fs.copyFileSync(path.join(dir, 'img/b.png'), path.join(dir, 'dist/img/b.png'))
-
-  // 第一张（a）拷贝失败，第二张照常拷贝。converted 按异步完成顺序填充，
-  // 不能用调用序定位，要用目标路径锁住 a
-  const realCopy = fs.copyFileSync.bind(fs)
-  const copy = mock.method(fs, 'copyFileSync', (src: fs.PathLike, dest: fs.PathLike) => {
-    if (String(dest).endsWith(`${path.sep}img${path.sep}a.webp`)) throw new Error('copy boom')
-    realCopy(src, dest)
-  })
-  const warnings: unknown[][] = []
-  const logs: unknown[][] = []
-  const origWarn = console.warn
-  const origLog = console.log
-  console.warn = (...args: unknown[]) => void warnings.push(args)
-  console.log = (...args: unknown[]) => void logs.push(args)
-  try {
-    ;(plugin.closeBundle as any).call({})
-    assert.fail('引用已被改写成 .webp，发布失败必须让构建失败')
-  } catch (error) {
-    const message = error instanceof Error ? error.message : ''
-    assert.equal(message.startsWith('[fusim:webp]'), true, message)
-    assert.equal(message.includes('1 个'), true, message)
-    assert.equal(message.includes('img/a.png'), true, message)
-  } finally {
-    copy.mock.restore()
-    console.warn = origWarn
-    console.log = origLog
-  }
-  // 失败有告警，报告不被吞掉且在抛错之前已打印
-  assert.equal(warnings.length, 1)
-  assert.equal(String(warnings[0][0]).includes('拷贝失败'), true)
-  assert.equal(String(warnings[0][0]).includes('img/a.png'), true)
-  assert.equal(logs.length > 0, true)
-  // 拷贝失败的 .webp 没落盘、原图绝不能删；后续条目照常发布且原图照删
-  assert.equal(fs.existsSync(path.join(dir, 'dist/img/a.webp')), false)
-  assert.equal(fs.existsSync(path.join(dir, 'dist/img/a.png')), true)
-  assert.equal(fs.existsSync(path.join(dir, 'dist/img/b.webp')), true)
-  assert.equal(fs.existsSync(path.join(dir, 'dist/img/b.png')), false)
-  // 报告只统计真正发布的条目：失败的那张既不算张数也不进明细
-  const reportLines = logs.map((args) => String(args[0]))
-  assert.equal(reportLines.some((line) => line.includes('1 张')), true)
-  assert.equal(reportLines.some((line) => line.includes('2 张')), false)
-  assert.equal(reportLines.some((line) => line.includes('img/b.png')), true)
-  assert.equal(reportLines.some((line) => line.includes('img/a.png')), false)
 })
 
 test('报告百分比：聚合变大时输出 +N%，不钳为 0', () => {

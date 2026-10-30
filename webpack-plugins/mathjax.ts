@@ -45,7 +45,7 @@ async function loadMathJax(): Promise<MathJaxInstance> {
     startup: { typeset: false },
   } as never
 
-  // 用 createRequire + 文件 URL 动态导入：绕开 Vite 在打包配置文件时对该包的静态解析
+  // 用 createRequire + 文件 URL 动态导入：bundle 入口不在包的 exports 里，bare specifier 解析不到
   const require = createRequire(import.meta.url)
   await import(pathToFileURL(require.resolve('@mathjax/src/bundle/startup.js')).href)
 

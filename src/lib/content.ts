@@ -32,10 +32,22 @@ type MdxModule = {
   frontmatter?: Frontmatter
 }
 
-const modules = import.meta.glob<MdxModule>('../content/**/*.mdx', { eager: true })
+/**
+ * 同步收集 `src/content` 下全部 MDX：webpack 的 context 模块在编译期展开成静态依赖，
+ * 键是 `./products/x.mdx` 这样的相对路径（Vite 的 `import.meta.glob` 在同一位置的替代）。
+ */
+const contentContext = import.meta.webpackContext('../content', {
+  recursive: true,
+  regExp: /\.mdx$/,
+})
 
+const modules: Record<string, MdxModule> = Object.fromEntries(
+  contentContext.keys().map((key) => [key, contentContext(key) as MdxModule]),
+)
+
+/** 统一成相对 `src/content` 的路径，页面类型与 URL 都按它判断。 */
 function relativePath(file: string): string {
-  return file.replace(/^.*\/content\//, '')
+  return file.replace(/^\.\//, '')
 }
 
 function toUrl(file: string): string {

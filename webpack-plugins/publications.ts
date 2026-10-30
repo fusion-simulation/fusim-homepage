@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Plugin, ViteDevServer } from 'vite'
+import type { LoaderContext } from 'webpack'
 
 import type {
   AttachmentDir,
@@ -9,11 +9,11 @@ import type {
   PublicationsData,
 } from '../src/lib/publication-types.ts'
 
-export const VIRTUAL_PUBLICATIONS_ID = 'virtual:publications'
-const RESOLVED_ID = '\0' + VIRTUAL_PUBLICATIONS_ID
-
 /** 远程附件清单（相对项目根目录）：声明不在仓库中的大数据文件。 */
-const MANIFEST_SEGMENTS = ['src', 'content', 'publications.manifest.json']
+export const MANIFEST_SEGMENTS = ['src', 'content', 'publications.manifest.json']
+
+/** 论文附件根目录（相对 publicDir）。 */
+export const PUB_SEGMENTS = ['assets', 'pub']
 
 type ManifestEntry = {
   /** 相对 `public/assets/pub` 的路径，例如 `2026/1/data/xxx.dump`。 */
@@ -303,53 +303,27 @@ function collectPublications(root: string, projectRoot: string): PublicationsDat
 
 /**
  * 把 `public/assets/pub` 的目录结构 + 远程附件清单编译为虚拟模块 `virtual:publications`。
+ *
+ * 用一个 loader 接管 `webpack-plugins/virtual-publications.js`（config 里通过 alias 把
+ * `virtual:publications` 指到它）：`addContextDependency` 让 webpack 的 watcher 盯住
+ * 附件目录，新增 / 删除 PDF 或子目录都会触发重新生成，等价于原 Vite 插件的整页刷新。
  */
-export function publications(): Plugin {
-  let publicDir = ''
-  let projectRoot = ''
+export default function publicationsLoader(
+  this: LoaderContext<Record<string, never>>,
+): string {
+  const root = this.rootContext
+  const publicDir = path.join(root, 'public')
+  const pubDir = path.join(publicDir, ...PUB_SEGMENTS)
+  const manifestPath = path.join(root, ...MANIFEST_SEGMENTS)
 
-  const invalidate = (server: ViteDevServer) => {
-    const mod = server.moduleGraph.getModuleById(RESOLVED_ID)
-    if (!mod) return
+  // 目录不存在时不必登记依赖：watchpack 会为不存在的路径报错
+  if (fs.existsSync(pubDir)) this.addContextDependency(pubDir)
+  if (fs.existsSync(manifestPath)) this.addDependency(manifestPath)
 
-    server.moduleGraph.invalidateModule(mod)
-    server.ws.send({ type: 'full-reload' })
-  }
+  const data = collectPublications(pubDir, root)
 
-  const isRelevant = (file: string) => {
-    if (!projectRoot) return false
-    if (file === path.join(projectRoot, ...MANIFEST_SEGMENTS)) return true
-    if (!publicDir) return false
-
-    return file.startsWith(path.join(publicDir, 'assets', 'pub'))
-  }
-
-  return {
-    name: 'fusim:publications',
-    configResolved(config) {
-      publicDir = config.publicDir
-      projectRoot = config.root
-    },
-    configureServer(server) {
-      server.watcher.on('all', (_event, file) => {
-        if (isRelevant(file)) invalidate(server)
-      })
-    },
-    resolveId(id) {
-      return id === VIRTUAL_PUBLICATIONS_ID ? RESOLVED_ID : null
-    },
-    load(id) {
-      if (id !== RESOLVED_ID) return null
-
-      const data = collectPublications(
-        path.join(publicDir, 'assets', 'pub'),
-        projectRoot,
-      )
-
-      return [
-        `export const publications = ${JSON.stringify(data.publications)};`,
-        `export const attachmentDirs = ${JSON.stringify(data.attachmentDirs)};`,
-      ].join('\n')
-    },
-  }
+  return [
+    `export const publications = ${JSON.stringify(data.publications)};`,
+    `export const attachmentDirs = ${JSON.stringify(data.attachmentDirs)};`,
+  ].join('\n')
 }
