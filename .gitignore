@@ -36,3 +36,7 @@ public/assets/pub/**/*.50400
 public/assets/pub/**/*_dump.*
 public/assets/pub/**/*_energy.*
 public/assets/pub/**/*.zip
+
+# 本地 agent 工具目录（内容随机器/会话变化，不入库）
+.agents/
+.pi/
