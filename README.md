@@ -24,7 +24,7 @@
 ## 常用命令
 
 ```bash
-npm run dev        # 本地开发（http://localhost:5000，改组件走 Fast Refresh）
+npm run dev        # 本地开发（http://localhost:5000，改组件走 Fast Refresh；端口被占用时自动 +1）
 npm run build      # SPA 构建，产物在 dist/（index.html + 静态资源 + 404.html 回退页）
 npm run preview    # 预览构建产物（本地静态服务，带 404 回退）
 npm run lint       # oxlint

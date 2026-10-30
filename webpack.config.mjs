@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ReactRefreshWebpackPlugin from '@pmmmwh/react-refresh-webpack-plugin'
@@ -9,10 +10,36 @@ import { WebpPlugin } from './webpack-plugins/webp.ts'
 const root = path.dirname(fileURLToPath(import.meta.url))
 const plugin = (name) => path.join(root, 'webpack-plugins', name)
 
-export default (_env, argv) => {
+/** dev server 的起始端口；被占用时从它开始 +1 找下一个可用端口。 */
+const DEV_PORT = 5000
+
+/** 试听一个端口，能 bind 就说明空闲（不传 host 时绑定 `::`，与 devServer 默认监听范围一致）。 */
+function isPortFree(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer()
+    server.unref()
+    server.once('error', () => resolve(false))
+    server.listen({ port }, () => server.close(() => resolve(true)))
+  })
+}
+
+/** 从 `start` 起找第一个空闲端口；被占用就自增，全满时给出明确报错。 */
+async function findFreePort(start) {
+  for (let port = start; port <= 65535; port++) {
+    if (await isPortFree(port)) return port
+  }
+  throw new Error(`[webpack] ${start}–65535 之间没有可用端口`)
+}
+
+export default async (_env, argv) => {
   const mode = argv.mode ?? 'development'
   const isDev = mode !== 'production'
   const webp = new WebpPlugin({ serve: isDev })
+  const port = isDev ? await findFreePort(DEV_PORT) : DEV_PORT
+
+  if (isDev && port !== DEV_PORT) {
+    console.log(`[webpack] ${DEV_PORT} 已被占用，dev server 改用 ${port}`)
+  }
 
   return {
     mode,
@@ -96,7 +123,7 @@ export default (_env, argv) => {
     performance: { hints: false },
     stats: 'errors-warnings',
     devServer: {
-      port: 5000,
+      port,
       hot: true,
       historyApiFallback: true,
       static: { directory: path.join(root, 'public'), publicPath: '/', watch: false },

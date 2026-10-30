@@ -13,7 +13,8 @@
 - 类型检查交给 TypeScript 5（`tsc -b` 是唯一的类型门禁）。
 - `styled-components` 与仓库里"无 `.css` 文件"的约定不变，不需要任何 CSS loader。
 - 版本库里的源图保持 `public/`（git 跟踪），只有产物换成 `.webp`。
-- dev server 端口用 `5000`（`5173` 与另一套服务冲突），`/products/x/` 这类客户端路由要能直接访问。
+- dev server 端口从 `5000` 起（`5173` 与另一套服务冲突），被占用时自动 +1（Vite 的 `strictPort: false` 行为），
+  `/products/x/` 这类客户端路由要能直接访问。
 
 ## 方案
 
