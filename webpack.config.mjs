@@ -96,7 +96,7 @@ export default (_env, argv) => {
     performance: { hints: false },
     stats: 'errors-warnings',
     devServer: {
-      port: 5173,
+      port: 5000,
       hot: true,
       historyApiFallback: true,
       static: { directory: path.join(root, 'public'), publicPath: '/', watch: false },
