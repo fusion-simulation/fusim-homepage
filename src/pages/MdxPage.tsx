@@ -1,7 +1,6 @@
-import { mergeClasses } from '@griffel/react'
 import { styled } from 'styled-components'
 import type { ContentPage } from '../lib/content'
-import { useProseStyles } from '../styles/prose'
+import { ProseArticle, ProseCard } from '../styles/prose'
 import { Card, HeroTag, Meta, Reveal, Section } from '../styles/shared'
 
 const JournalArticle = styled(Card)`
@@ -9,7 +8,6 @@ const JournalArticle = styled(Card)`
 `
 
 export function MdxPage({ page }: { page: ContentPage }) {
-  const prose = useProseStyles()
   const { Component, frontmatter, kind } = page
 
   if (kind === 'journal') {
@@ -29,20 +27,15 @@ export function MdxPage({ page }: { page: ContentPage }) {
 
   if (kind === 'product' || kind === 'product_section') {
     return (
-      <article
-        className={mergeClasses(
-          prose.prose,
-          frontmatter.wide ? prose.proseBoxWide : prose.proseBox,
-        )}
-      >
+      <ProseArticle $wide={frontmatter.wide}>
         {kind === 'product' ? (
-          <div className={prose.proseCard}>
+          <ProseCard>
             <Component />
-          </div>
+          </ProseCard>
         ) : (
           <Component />
         )}
-      </article>
+      </ProseArticle>
     )
   }
 
