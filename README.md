@@ -12,8 +12,9 @@
 | 内容 | MDX（`@mdx-js/mdx`）+ YAML frontmatter + GFM + MathJax v4（构建期 SVG） |
 | 构建 | Vite 8（Rolldown） |
 
-全局样式（CSS 变量、暗色主题覆盖、重置）在 `src/styles/global.ts`，由 `createGlobalStyle` 在挂载时注入；
-其余样式是 `src/styles/*.ts` 里导出的 styled 组件，页面直接用组件、变体用 `$` 前缀的 transient props。
+组件样式是 `src/styles/*.ts` 里导出的 styled 组件，页面直接用组件、变体用 `$` 前缀的 transient props。
+全局样式（CSS 变量、暗色覆盖、重置、`body` 背景）内联在 `index.html` 的 `<head>` 里：它们必须首屏生效，
+交给运行时注入会先闪一帧白底。仓库里因此既没有 `.css` 文件，也没有运行时全局样式注入。
 颜色仍走 `var(--*)`，暗色主题由 `index.html` 的内联脚本设置 `html[data-theme]` 驱动，不经过 React。
 
 数学公式在**构建期**由 `vite-plugins/mathjax.ts` 调用 MathJax v4 渲染成自包含 SVG（字形路径内嵌、

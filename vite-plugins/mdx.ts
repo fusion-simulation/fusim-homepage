@@ -11,10 +11,10 @@ const MDX_RE = /\.mdx?$/
 /**
  * 将 `.mdx` / `.md` 编译为 React 组件。
  *
- * 功能对齐原 Lume 站点的 `remark()` + `katex()` 插件：
+ * 功能对齐原 Lume 站点的 `remark()` + 数学公式插件：
  * - YAML frontmatter 以 `frontmatter` 具名导出
  * - GFM（表格 / 任务列表 / 删除线等）
- * - `$...$` / `$$...$$` 数学公式（构建期用 MathJax v4 渲染成自包含 SVG）
+ * - `$...$` / `$$...$$` 数学公式（构建期用 MathJax v4 渲染成自包含 SVG，见 mathjax.ts）
  */
 export function mdx(): Plugin {
   return {

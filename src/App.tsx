@@ -5,7 +5,6 @@ import { normalizePath } from './lib/meta'
 import { attachmentDirByUrl } from './lib/publications'
 import { useDocumentMeta } from './lib/useDocumentMeta'
 import { useScrollToTop } from './lib/useScrollToTop'
-import { GlobalStyle } from './styles/global'
 import { AboutPage } from './pages/AboutPage'
 import { AttachmentDirPage } from './pages/AttachmentDirPage'
 import { HomePage } from './pages/HomePage'
@@ -35,29 +34,21 @@ export function App() {
   // 论文附件目录页是独立页面（不带站点 header / footer）
   const attachmentDir = attachmentDirByUrl.get(url)
   if (attachmentDir) {
-    return (
-      <>
-        <GlobalStyle />
-        <AttachmentDirPage dir={attachmentDir} />
-      </>
-    )
+    return <AttachmentDirPage dir={attachmentDir} />
   }
 
   return (
-    <>
-      <GlobalStyle />
-      <Layout>
-        <Switch>
-          <Route path="/" component={HomePage} />
-          <Route path="/about" component={AboutPage} />
-          <Route path="/journal" component={JournalPage} />
-          <Route path="/press" component={PressPage} />
-          <Route path="/products" component={ProductsPage} />
-          <Route path="/publications" component={PublicationsPage} />
-          <Route path="/responsibility" component={ResponsibilityPage} />
-          <Route component={ContentRoute} />
-        </Switch>
-      </Layout>
-    </>
+    <Layout>
+      <Switch>
+        <Route path="/" component={HomePage} />
+        <Route path="/about" component={AboutPage} />
+        <Route path="/journal" component={JournalPage} />
+        <Route path="/press" component={PressPage} />
+        <Route path="/products" component={ProductsPage} />
+        <Route path="/publications" component={PublicationsPage} />
+        <Route path="/responsibility" component={ResponsibilityPage} />
+        <Route component={ContentRoute} />
+      </Switch>
+    </Layout>
   )
 }

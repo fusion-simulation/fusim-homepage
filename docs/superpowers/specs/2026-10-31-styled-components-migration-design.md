@@ -20,7 +20,9 @@
   `mergeClasses`、`cx`。
 - 样式以 styled 组件（`styled.div` 等）的形式存在，变体用 transient props
   （`$variant`、`$delay`、`$open`）。
-- 仓库源码中没有任何 `.css` 文件：`global.css` 搬进 `createGlobalStyle`。
+- 仓库源码中没有任何 `.css` 文件：全局样式（变量、暗色覆盖、重置、`body` 背景）内联进
+  `index.html` 的 `<head>`。**不**用 `createGlobalStyle` 承担首屏样式——它要等 JS 执行后
+  才注入，冷启动会先闪一帧白底/浅色，属于视觉回归。
 - 产物里也不再需要样式表：数学公式从 KaTeX（`katex.min.css` + 字体）换成 MathJax v4
   的 SVG 输出，SVG 自带字形路径，不需要任何外部 CSS 或字体。
 - 视觉与交互保持不变（含暗色主题、移动端断点、入场动画）。
@@ -74,9 +76,10 @@ C. 保留样式对象 + 自制注入器：等于重写一遍 Griffel。
 - **入场动画**：`fadeUp` 用 `keyframes` 生成，`reveal(delay)` 用 `css` 片段导出；
   需要动画的组件接 `$delay`（0–3，对应 0 / 0.15 / 0.3 / 0.45s）。不再有独立的
   `reveal` / `delay1..3` 样式键。
-- **全局样式**：`src/styles/global.ts` 导出 `createGlobalStyle` 组件（CSS 变量、暗色
-  变量覆盖、`*` 重置、`body`、`a`），由 `App` 渲染一次。`fadeUp` keyframes 与 `reveal`
-  片段放在 `src/styles/animation.ts`，供 `shared` / `hero` 共用。
+- **全局样式**：变量、暗色覆盖、`*` 重置、`body`、`a` 全部写在 `index.html` 的 `<head>`
+  （首屏即生效，且不是 `.css` 文件）。`fadeUp` keyframes 与 `reveal` 片段放在
+  `src/styles/animation.ts`，供 `shared` / `hero` 共用。`vite-plugins/prepaint.test.ts`
+  守住这条不变量。
   主题切换图标的显隐不再用全局类名，改成 `styled(SunIcon)` / `styled(MoonIcon)` 上写
   `html[data-theme="dark"] & { … }`。
 - **prose**：仍用后代选择器（`& h1`、`& p` …），styled-components 的嵌套与此一致；
