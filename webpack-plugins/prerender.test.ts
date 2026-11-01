@@ -7,8 +7,11 @@ import {
   buildJsonLd,
   buildRobots,
   buildSitemap,
+  composeShell,
   escapeHtml,
+  htmlFileFor,
   type PageSeo,
+  type ShellPage,
   type SiteInfo,
 } from './prerender.ts'
 
@@ -134,4 +137,94 @@ test('品牌资产是规定尺寸的 PNG', () => {
       `${file} 尺寸不对`,
     )
   }
+})
+
+/** 真实壳形态：HtmlWebpackPlugin 生产模式压缩后属性不带引号。 */
+const MINIFIED_SHELL =
+  '<!doctype html><html lang=zh-CN><head><meta charset=utf-8><meta name=description content=旧描述><title>聚核智算 FUSIM</title></head><body><div id=root></div></body></html>'
+
+const PAGE: ShellPage = {
+  url: '/about/',
+  title: '企业介绍 | 聚核智算 FUSIM',
+  description: '企业介绍。',
+  ogType: 'website',
+  body: '<main>正文</main>',
+  styles: '<style data-styled="true">.a{color:red}</style>',
+}
+
+test('composeShell 改写压缩壳的 title / description / root', () => {
+  const html = composeShell(MINIFIED_SHELL, PAGE, SITE)
+  assert.match(html, /<title>企业介绍 \| 聚核智算 FUSIM<\/title>/)
+  assert.doesNotMatch(html, /旧描述/)
+  assert.match(html, /<div id="root"><main>正文<\/main><\/div>/)
+})
+
+test('composeShell 兼容带引号的壳', () => {
+  const pretty =
+    '<head><meta name="description" content="旧"><title>旧</title></head><body><div id="root"></div></body>'
+  const html = composeShell(pretty, PAGE, SITE)
+  assert.match(html, /<title>企业介绍 \| 聚核智算 FUSIM<\/title>/)
+  assert.match(html, /content="企业介绍。"/)
+  assert.match(html, /<div id="root"><main>正文<\/main><\/div>/)
+})
+
+test('composeShell 注入 canonical / OG / twitter / JSON-LD / 样式到 </head> 前', () => {
+  const html = composeShell(MINIFIED_SHELL, PAGE, SITE)
+  for (const snippet of [
+    '<link rel="canonical" href="https://www.fusim.cn/about/">',
+    '<meta property="og:site_name" content="聚核智算">',
+    '<meta property="og:type" content="website">',
+    '<meta property="og:url" content="https://www.fusim.cn/about/">',
+    '<meta property="og:image" content="https://www.fusim.cn/og-image.png">',
+    '<meta property="og:locale" content="zh_CN">',
+    '<meta name="twitter:card" content="summary_large_image">',
+    '.a{color:red}',
+  ]) {
+    assert.ok(html.includes(snippet), `缺少 ${snippet}`)
+  }
+  assert.ok(html.indexOf('rel="canonical"') < html.indexOf('</head>'))
+})
+
+test('composeShell 对 404 只注入 noindex 与样式', () => {
+  const html = composeShell(MINIFIED_SHELL, { ...PAGE, url: '/__404__/', notFound: true }, SITE)
+  assert.match(html, /<meta name="robots" content="noindex">/)
+  assert.doesNotMatch(html, /rel="canonical"/)
+  assert.doesNotMatch(html, /og:/)
+  assert.doesNotMatch(html, /application\/ld\+json/)
+  assert.match(html, /\.a\{color:red\}/)
+})
+
+test("composeShell 原样保留 body 里的 $& 与 $'", () => {
+  const body = "<span>$& $` $' $1</span>"
+  const html = composeShell(MINIFIED_SHELL, { ...PAGE, body }, SITE)
+  assert.ok(html.includes(`<div id="root">${body}</div>`), '替换串里的 $ 不能被当成替换模板')
+})
+
+test('composeShell 转义 title 与 description', () => {
+  const html = composeShell(
+    MINIFIED_SHELL,
+    { ...PAGE, title: 'a&b<c>d"e', description: `x"y` },
+    SITE,
+  )
+  assert.match(html, /<title>a&amp;b&lt;c&gt;d&quot;e<\/title>/)
+  assert.match(html, /content="x&quot;y"/)
+})
+
+test('composeShell 锚点缺失时抛错（不静默产出没有 meta 的页面）', () => {
+  assert.throws(() => composeShell('<head></head>', PAGE, SITE), /找不到.*title/)
+  assert.throws(
+    () => composeShell('<head><title>t</title></head>', PAGE, SITE),
+    /找不到.*description/,
+  )
+  assert.throws(
+    () =>
+      composeShell('<head><title>t</title><meta name=description content=d></head>', PAGE, SITE),
+    /找不到.*root/,
+  )
+})
+
+test('htmlFileFor 把路由映射到 index.html 路径', () => {
+  assert.equal(htmlFileFor('/'), 'index.html')
+  assert.equal(htmlFileFor('/about/'), 'about/index.html')
+  assert.equal(htmlFileFor('/assets/pub/2026/1/data/'), 'assets/pub/2026/1/data/index.html')
 })

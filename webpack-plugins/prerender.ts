@@ -111,3 +111,54 @@ export function buildRobots(site: SiteInfo): string {
     '',
   ].join('\n')
 }
+
+export type ShellPage = PageSeo & { body: string; styles: string }
+
+/** 壳里的三个锚点：HtmlWebpackPlugin 压缩后属性不带引号，两种形态都要匹配。 */
+const TITLE = /<title>[\s\S]*?<\/title>/
+const DESCRIPTION = /<meta[^>]*\bname=["']?description["']?[^>]*>/i
+const ROOT = /<div id=["']?root["']?><\/div>/
+
+/** 只替换第一处；锚点缺失直接抛错（HtmlWebpackPlugin 改形态时必须人工介入，不能静默跳过）。 */
+function replaceOnce(html: string, pattern: RegExp, replacement: string, what: string): string {
+  if (!pattern.test(html)) throw new Error(`[fusim:prerender] 壳 HTML 里找不到${what}`)
+  // 用函数替换：body 里的 $& / $' 不能被当成替换模板
+  return html.replace(pattern, () => replacement)
+}
+
+export function composeShell(shell: string, page: ShellPage, site: SiteInfo): string {
+  let html = replaceOnce(shell, TITLE, `<title>${escapeHtml(page.title)}</title>`, '<title>')
+  // 整块换掉而不是只改 value：压缩壳的 content 可能不带引号
+  html = replaceOnce(
+    html,
+    DESCRIPTION,
+    `<meta name="description" content="${escapeHtml(page.description)}">`,
+    'description meta',
+  )
+  html = replaceOnce(html, ROOT, `<div id="root">${page.body}</div>`, 'root 容器')
+
+  const canonical = escapeHtml(absoluteUrl(site, page.url))
+  // 404 页只求不被收录：不写 canonical / OG / JSON-LD
+  const tags = page.notFound
+    ? ['<meta name="robots" content="noindex">', page.styles]
+    : [
+        `<link rel="canonical" href="${canonical}">`,
+        `<meta property="og:site_name" content="${escapeHtml(site.name)}">`,
+        `<meta property="og:type" content="${escapeHtml(page.ogType)}">`,
+        `<meta property="og:url" content="${canonical}">`,
+        `<meta property="og:title" content="${escapeHtml(page.title)}">`,
+        `<meta property="og:description" content="${escapeHtml(page.description)}">`,
+        `<meta property="og:image" content="${escapeHtml(site.ogImage)}">`,
+        '<meta property="og:locale" content="zh_CN">',
+        '<meta name="twitter:card" content="summary_large_image">',
+        buildJsonLd(page, site),
+        page.styles,
+      ]
+
+  return replaceOnce(html, /<\/head>/, `${tags.join('')}</head>`, '</head>')
+}
+
+export function htmlFileFor(url: string): string {
+  const route = url.replace(/^\/+/, '').replace(/\/+$/, '')
+  return route ? `${route}/index.html` : 'index.html'
+}
