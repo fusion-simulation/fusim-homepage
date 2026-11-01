@@ -46,14 +46,14 @@ function backdrop(width, height) {
 
 await sharp(backdrop(1200, 630))
   .composite([{ input: await logoPng('public/logos/fusim-logo-full.svg', 780), gravity: 'center' }])
-  .png({ compressionLevel: 9, effort: 10 })
+  .png({ compressionLevel: 9 })
   .toFile(path.join(root, 'public/og-image.png'))
 
 await sharp(backdrop(512, 512))
   .composite([
     { input: await logoPng('public/logos/fusim-logo-stacked.svg', 400), gravity: 'center' },
   ])
-  .png({ compressionLevel: 9, effort: 10 })
+  .png({ compressionLevel: 9 })
   .toFile(path.join(root, 'public/logos/fusim-logo-512.png'))
 
 console.log('  ✓ public/og-image.png (1200×630)')
