@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 import { Router } from 'wouter'
 import { App } from './App.tsx'
 
@@ -17,4 +17,9 @@ const app = (
   </StrictMode>
 )
 
-createRoot(container).render(app)
+// 预渲染产物已有 DOM：接管而不是重绘（dev 的壳是空容器，仍走 createRoot）
+if (container.hasChildNodes()) {
+  hydrateRoot(container, app)
+} else {
+  createRoot(container).render(app)
+}
