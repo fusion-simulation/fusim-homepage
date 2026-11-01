@@ -7,7 +7,7 @@
 | 能力 | 方案 |
 | --- | --- |
 | UI | React 19 + TypeScript |
-| 路由 | [wouter](https://github.com/molefrog/wouter)（SPA 客户端路由） |
+| 路由 | [wouter](https://github.com/molefrog/wouter)（同一份路由表：构建期预渲染与客户端导航） |
 | 样式 | [styled-components](https://styled-components.com/)（组件化 CSS-in-JS，仓库内无 `.css` 文件） |
 | 内容 | MDX（`@mdx-js/mdx`）+ YAML frontmatter + GFM + MathJax v4（构建期 SVG） |
 | 代码质量 | [Biome](https://biomejs.dev/)（lint + 格式化，替代 ESLint / Prettier） |
@@ -28,14 +28,14 @@
 
 ```bash
 npm run dev        # 本地开发（http://localhost:5000，改组件走 Fast Refresh；端口被占用时自动 +1）
-npm run build      # SPA 构建，产物在 dist/（index.html + 静态资源 + 404.html 回退页）
-npm run preview    # 预览构建产物（本地静态服务，带 404 回退）
+npm run build      # 类型检查 + 构建 + 预渲染（每个路由一份静态 HTML，产物在 dist/）
+npm run preview    # 预览构建产物（本地静态服务，未命中的路径返回 404 页）
 npm run lint       # biome check（lint + 格式 + import 排序）
 npm run format     # biome check --write（写回格式、安全修复与 import 排序）
 npm test           # webpack-plugins 单元测试（node --test）
 ```
 
-> 站点是单页应用（SPA）：由 `index.html` 加载 JS 后渲染页面，未命中的路径回退到 `404.html`。
+构建期预渲染每个路由（SSG 形态的产物），客户端由 `hydrateRoot` 接管；`npm run dev` 仍是纯客户端 SPA。
 
 ## 构建管线
 
@@ -44,6 +44,7 @@ npm test           # webpack-plugins 单元测试（node --test）
 | `tsc -b` | 只看类型（`tsconfig.app.json` / `tsconfig.node.json`），不产出文件 |
 | `babel-loader` | 逐模块去掉类型、把 JSX 转成 `react/jsx-runtime` 调用；dev 下同时插 Fast Refresh 的钩子 |
 | `webpack` | 打包 + 发静态资源 |
+| `node scripts/prerender.mjs` | 以 `target: 'node'` 再编一次 server bundle，逐路由渲染并写出 `dist/<路由>/index.html`、`dist/404.html`、`dist/sitemap.xml`、`dist/robots.txt` |
 
 - **TSX 为什么由 Babel 编**：Fast Refresh 需要在编译期往每个组件里插 `$RefreshReg$` / `$RefreshSig$`
   （Webpack 侧再由 `@pmmmwh/react-refresh-webpack-plugin` 换成运行时调用）。`tsc` 不做这类插桩，
@@ -55,30 +56,36 @@ npm test           # webpack-plugins 单元测试（node --test）
 - **虚拟模块**：`virtual:publications` 会被 webpack 当成 URI scheme，用 `NormalModuleReplacementPlugin`
   指到 `webpack-plugins/virtual-publications.js`，内容由 loader 生成；`addContextDependency` 盯住
   `public/assets/pub`，新增 / 删除附件会触发重编。
+- **一份 loader 链，两次编译**：server bundle 只换 `target` / `entry` / `output`，loader 规则复用
+  `webpack.config.mjs` 导出的 `createModuleRules({ isDev })`。MDX 编译、WebP 引用改写这些环节若两边
+  各写一份，预渲染的 HTML 与客户端 hydrate 的内容就会分叉。
 
 ## 目录结构
 
 ```
-index.html                  # SPA 入口模板（主题预设、字体、meta；HtmlWebpackPlugin 从这里生成产物）
-webpack.config.mjs          # webpack 配置（rules / Babel 选项 / 插件 / devServer）
+index.html                  # HTML 壳模板（主题预设、字体、meta；HtmlWebpackPlugin 从这里生成产物）
+webpack.config.mjs          # webpack 配置（共用的 createModuleRules / 插件 / devServer / 图片直通名单）
 webpack-plugins/
   mdx.ts                    # loader：把 .mdx 编译成 jsx-runtime 调用（frontmatter / GFM）
   mathjax.ts                # 构建期把 $...$ / $$...$$ 用 MathJax v4 渲染成自包含 SVG
+  prerender.ts              # 纯函数：壳改写 / JSON-LD / sitemap / robots
   publications.ts           # loader：扫描 public/assets/pub，生成 virtual:publications
   webp.ts                   # 插件：build 时转码 public 图片、发布 public 资源（带磁盘缓存）
   webp-loader.ts            # loader：把模块里的图片引用改成 .webp
   virtual-publications.js   # 虚拟模块的占位落点（内容由 publications.ts 生成）
 scripts/
-  preview.mjs               # 预览 dist/（静态服务 + 404 回退）
-  spa-fallback.mjs          # 复制 index.html -> 404.html
+  generate-social-assets.mjs # 一次性生成 OG 分享图与 512 logo（产物已入库）
+  prerender.mjs             # 编 server bundle → 逐路由渲染 → 写 404 / sitemap / robots
+  preview.mjs               # 预览 dist/（静态服务，未命中返回 404 页）
 src/
-  main.tsx                  # 客户端入口
+  main.tsx                  # 客户端入口（预渲染产物走 hydrateRoot，dev 走 createRoot）
+  ssr.tsx                   # server bundle 入口：routes / render / siteInfo
   App.tsx                   # 路由表 + 标题同步
   components/               # Header / Footer / Layout / DataTree / 图标
   pages/                    # 各页面（首页、产品、论文、附件目录...）
   content/                  # 站点数据 + MDX 内容
   lib/                      # 内容索引、meta、论文数据
-  styles/                   # styled 组件（global.ts 是 createGlobalStyle 的全局样式）
+  styles/                   # styled 组件
 public/assets/              # 图片、论文 PDF 等静态资源
 ```
 
@@ -198,11 +205,38 @@ public/assets/              # 图片、论文 PDF 等静态资源
   - **不做 AVIF**：sharp/libheif 的动图 AVIF 有「堆叠帧总高 ≤ 16384 px」的上限，本站动图
     （36 帧 × 450 px 已近顶，5 张 GIF 全部超出）都装不进去，收益抵不过成本，故只做 WebP。
 
+## SEO
+
+- **域名单源**：canonical 域名为 `https://www.fusim.cn`，唯一来源是 `src/content/site.ts` 的 `site.url`；
+  预渲染、客户端导航（`useDocumentMeta`）、`sitemap.xml`、`robots.txt` 与 JSON-LD 都从它拼绝对地址。
+- **每页 meta**：预渲染时往壳里写入 `<link rel="canonical">`、Open Graph（`og:site_name` / `type` /
+  `url` / `title` / `description` / `image` / `locale`）、Twitter Card（`summary_large_image`）与 JSON-LD。
+  JSON-LD 每页都带 `Organization`，首页加 `WebSite`，journal 详情（`og:type=article`）加 `Article`；
+  `404.html` 只写 `noindex`，不写 canonical / OG / JSON-LD，也不进 sitemap。
+  客户端路由切换时 `useDocumentMeta` 同步 title / description / canonical，不会停在首次进入的那一页。
+- **`robots.txt`**：允许全站，但挡掉附件里不入库的大文件（`*.dat`、`*_dump`、`*_energy`），
+  末尾指向 `sitemap.xml`。
+- **`sitemap.xml`**：构建时按全部预渲染路由生成，journal 详情带 frontmatter 的 `date` 作为 `lastmod`。
+- **社交分享图与 logo**：`public/og-image.png` 与 `public/logos/fusim-logo-512.png` 在
+  `webpack.config.mjs` 的 `PASSTHROUGH_IMAGE_URLS` 里跳过 WebP 转码——`og:image` 与 JSON-LD 的 `logo`
+  必须是 PNG。改品牌资产后跑 `node scripts/generate-social-assets.mjs` 重新生成并提交产物。
+- **搜索平台验证**：百度站长等平台给的验证文件直接放进 `public/`，构建会原样发到 `dist/` 根目录。
+
 ## 部署
 
-SPA 需要把未命中的路径回退到 `index.html`，构建脚本已生成 `dist/404.html`：
+产物是「每个路由一份 HTML」的静态站，服务器按目录索引取文件即可，不需要 SPA 回退：
 
-- GitHub Pages：直接使用 `dist/`（404 回退生效）；
-- nginx：`try_files $uri $uri/ /index.html;`
-- 对象存储 / CDN：把 404 文档指向 `404.html`。
+- Apache httpd 2.4（主）：`ErrorDocument 404 /404.html`——未知路径以 **404 状态**返回预渲染的 404 页；
+  无尾斜杠的路径由 mod_dir 301 到带斜杠的目录地址（`/about` → `/about/`）；
+- nginx：
+
+  ```nginx
+  location / {
+    try_files $uri $uri/ =404;
+  }
+  error_page 404 /404.html;
+  ```
+
+  不再回退到 `index.html`：未命中的路径必须保持 404，否则任意路径都会被当成首页。
+- 对象存储 / CDN：把 404 文档指向站点根目录的 `404.html`；
 - 论文附件中的大数据文件（dump / energy 等）不随构建产物发布，需单独上传到静态服务器的 `/assets/pub/...`。
