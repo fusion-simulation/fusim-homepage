@@ -1,3 +1,4 @@
+import { PageHeader } from '../components/PageHeader'
 import type { ContentPage } from '../lib/content'
 import { productSections, productsOfSection } from '../lib/content'
 import { CardAnchor, CardGrid, CardLink, Reveal, Section } from '../styles/shared'
@@ -32,6 +33,12 @@ function ProductCard({ product }: { product: ContentPage }) {
 export function ProductsPage() {
   return (
     <>
+      <PageHeader
+        eyebrow="Products"
+        title="产品矩阵"
+        description="覆盖聚变物理与工程仿真的核心工具链，以及面向装置的定制化仿真方案。"
+      />
+
       {productSections.map((section) => {
         const { frontmatter } = section
         const SectionContent = section.Component

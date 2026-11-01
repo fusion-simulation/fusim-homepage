@@ -17,7 +17,9 @@
 组件样式是 `src/styles/*.ts` 里导出的 styled 组件，页面直接用组件、变体用 `$` 前缀的 transient props。
 全局样式（CSS 变量、暗色覆盖、重置、`body` 背景）内联在 `index.html` 的 `<head>` 里：它们必须首屏生效，
 交给运行时注入会先闪一帧白底。仓库里因此既没有 `.css` 文件，也没有运行时全局样式注入。
-颜色仍走 `var(--*)`，暗色主题由 `index.html` 的内联脚本设置 `html[data-theme]` 驱动，不经过 React。
+颜色仍走 `var(--*)`，主题由 `index.html` 的内联脚本设置 `html[data-theme]` 驱动，不经过 React：
+暗色（深紫 + 等离子品红）是默认主题，亮色（薰衣草纸白）需显式切换；URL 加 `?theme=light|dark` 可指定主题。
+辉光色统一走 `rgba(var(--accent-rgb), α)` / `rgba(var(--hl-rgb), α)`，换色调只需改 `index.html` 里的令牌。
 
 数学公式在**构建期**由 `webpack-plugins/mathjax.ts` 调用 MathJax v4 渲染成自包含 SVG（字形路径内嵌、
 无外部字体与样式表），因此**产物里没有任何 CSS 文件**。
@@ -156,9 +158,11 @@ public/assets/              # 图片、论文 PDF 等静态资源
 
 ## 实现说明
 
-- **样式组织**：站点级复用样式在 `src/styles/shared.ts` / `layout.ts` / `hero.ts` / `prose.ts` /
-  `publications.ts`，各自导出 styled 组件；只在单个页面用一次的组件（如日志正文的 `JournalArticle`）
-  直接写在页面文件里。动画片段 `reveal` + `$delay`（0–3）实现入场级联。
+- **样式组织**：站点级复用样式在 `src/styles/shared.ts`（Band/Shell/SectionHead/卡片/按钮）、
+  `layout.ts`（Header/Footer）、`page.ts`（内页页头）、`hero.ts`（全屏 Hero）、`home.ts`（首页专属区块）、
+  `prose.ts` / `publications.ts`，各自导出 styled 组件；只在单个页面用一次的组件直接写在页面文件里。
+  动画片段 `reveal` + `$delay`（0–3）实现入场级联；首页信息架构：全屏 Hero → 合作带 → 三大核心技术 →
+  工作流对比 → 产品矩阵 → 成果验证 → CTA。
 - **数学公式**：`webpack-plugins/mathjax.ts` 只加载 MathJax 的 `input/tex` + `output/svg` + `adaptors/liteDOM`，
   不加载 `a11y/sre`（它会在 Node 里起 worker thread 让构建进程无法退出，且让公式体积翻三倍）。
   SVG 自带字形路径，用 `aria-label` 写入 TeX 源码作为可访问名称。相同公式按 `display + tex` 缓存。

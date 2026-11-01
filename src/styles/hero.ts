@@ -1,200 +1,216 @@
-import { css, styled } from 'styled-components'
-import { type RevealProps, reveal } from './animation'
+import { styled } from 'styled-components'
+import { type RevealProps, reveal, scrollLine } from './animation'
 
-/** 首页 hero 与右侧 mock 面板。 */
+/** 首页全屏 Hero：背景等离子体场景 + 居中大标题 + 底部数据带。 */
 
-export const Hero = styled.section`
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 110px 7vw 80px;
+export const HeroStage = styled.section`
+  position: relative;
+  /* 扣除 sticky header 的高度，数据带恰好收在首屏底缘 */
+  min-height: calc(100svh - var(--header-h));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`
+
+/** 背景：大尺寸托卡马克场景，径向遮罩淡出边缘。 */
+export const HeroBackdrop = styled.div`
+  position: absolute;
+  inset: 0;
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 24px;
+  place-items: center;
+  pointer-events: none;
+
+  & > svg {
+    width: min(118vh, 1080px);
+    height: auto;
+    opacity: 0.8;
+    -webkit-mask-image: radial-gradient(circle at 50% 44%, black 30%, transparent 72%);
+    mask-image: radial-gradient(circle at 50% 44%, black 30%, transparent 72%);
+  }
 
   @media (max-width: 960px) {
-    grid-template-columns: 1fr;
+    & > svg {
+      width: 150vw;
+      opacity: 0.4;
+    }
   }
 `
 
-export const HeroText = styled.div<RevealProps>`
+export const HeroContent = styled.div`
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0;
+  padding: 132px 7vw 150px;
+`
+
+export const HeroEyebrow = styled.p<RevealProps>`
   ${reveal}
-  grid-column: span 7;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.34em;
+  color: var(--accent-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
 
-  @media (max-width: 960px) {
-    grid-column: span 1;
+  &::before,
+  &::after {
+    content: "";
+    width: 36px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent));
+  }
+
+  &::after {
+    background: linear-gradient(90deg, var(--accent), transparent);
   }
 `
 
-export const HeroTitle = styled.h1`
-  font-size: clamp(2.8rem, 4vw, 4rem);
-  line-height: 1.1;
-  margin: 24px 0 18px;
-  font-weight: 600;
+export const HeroTitle = styled.h1<RevealProps>`
+  ${reveal}
+  /* 2.35rem 保证 390px 宽下「打造聚变堆系统的」8 字不断行 */
+  font-size: clamp(2.35rem, 6.4vw, 5.4rem);
+  line-height: 1.14;
+  margin: 30px 0 26px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  max-width: 20em;
+
+  /* 第二行「数字孪生设施」用主色纯色强调（不用渐变字） */
+  & em {
+    display: block;
+    font-style: normal;
+    color: var(--accent-ink);
+    text-shadow: 0 0 32px rgba(var(--accent-rgb), 0.35);
+  }
 `
 
-export const HeroDescription = styled.p`
+export const HeroLead = styled.p<RevealProps>`
+  ${reveal}
   color: var(--text-muted);
-  font-size: 1.1rem;
-  line-height: 1.7;
-  max-width: 520px;
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
+  line-height: 1.9;
+  max-width: 620px;
 `
 
-export const HeroActions = styled.div`
-  margin-top: 28px;
+export const HeroActions = styled.div<RevealProps>`
+  ${reveal}
+  margin-top: 40px;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 16px;
 
   @media (max-width: 640px) {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    width: min(360px, 100%);
   }
 `
 
-export const HeroVisual = styled.aside<RevealProps>`
+/** 底部数据带：全宽、发丝线上边框、玻璃底。 */
+export const HeroStatBar = styled.div<RevealProps>`
   ${reveal}
-  grid-column: span 5;
   position: relative;
-  min-height: 420px;
+  z-index: 1;
+  border-top: 1px solid var(--line);
+  background: var(--surface-translucent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  & > div {
+    max-width: var(--max-width-wide);
+    margin: 0 auto;
+    padding: 0 7vw;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media (max-width: 760px) {
+    & > div {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+`
+
+export const HeroStat = styled.div`
+  padding: 22px 20px;
+  text-align: center;
+  display: grid;
+  gap: 4px;
+  position: relative;
+
+  /* 列间细分隔线 */
+  &:not(:first-child)::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 24%;
+    bottom: 24%;
+    width: 1px;
+    background: var(--line);
+  }
+
+  @media (max-width: 760px) {
+    &:nth-child(3)::before {
+      display: none;
+    }
+  }
+`
+
+export const HeroStatValue = styled.strong`
+  font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+  font-weight: 700;
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+  color: var(--text);
+
+  & small {
+    font-size: 0.55em;
+    font-weight: 500;
+    color: var(--accent-ink);
+    margin-left: 4px;
+    letter-spacing: 0.08em;
+  }
+`
+
+export const HeroStatLabel = styled.p`
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+`
+
+/** 滚动提示。 */
+export const ScrollCue = styled.div<RevealProps>`
+  ${reveal}
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 132px;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.32em;
+
+  &::after {
+    content: "";
+    width: 1px;
+    height: 34px;
+    background: linear-gradient(180deg, var(--accent), transparent);
+    animation: ${scrollLine} 2.4s ease-in-out infinite;
+  }
 
   @media (max-width: 960px) {
-    grid-column: span 1;
+    display: none;
   }
-`
-
-export const MockFrame = styled.div`
-  background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  position: relative;
-`
-
-export const MockTopbar = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
-  background-color: var(--surface-translucent);
-`
-
-export const MockDot = styled.span`
-  width: 10px;
-  height: 10px;
-  border-radius: 4px;
-  background-color: var(--dot);
-`
-
-export const MockTopbarText = styled.p`
-  margin-left: auto;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  line-height: 1.7;
-  max-width: 520px;
-`
-
-export const MockBody = styled.div`
-  padding: 24px;
-  display: grid;
-  gap: 20px;
-`
-
-export const MockMetrics = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-`
-
-export const MockMetric = styled.div`
-  padding: 14px 16px;
-  border-radius: var(--radius-sm);
-  background-color: var(--metric-bg);
-  border: 1px dashed var(--metric-border);
-`
-
-export const MockMetricValue = styled.strong`
-  font-size: 1.4rem;
-`
-
-export const MockMetricLabel = styled.p`
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  line-height: 1.7;
-  max-width: 520px;
-`
-
-export const MockScreen = styled.div`
-  border-radius: var(--radius-md);
-  background: linear-gradient(120deg, rgba(63, 109, 246, 0.2), rgba(79, 209, 197, 0.2));
-  padding: 24px;
-  min-height: 160px;
-  border: 1px solid var(--line);
-`
-
-export const MockGradient = styled.div`
-  height: 80px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(120deg, rgba(63, 109, 246, 0.4), rgba(79, 209, 197, 0.3));
-`
-
-export const MockLine = styled.div<{ $short?: boolean }>`
-  height: 10px;
-  background-color: var(--bar);
-  margin-top: 12px;
-  border-radius: 6px;
-  ${({ $short }) => ($short ? 'width: 60%;' : '')}
-`
-
-const floatCardCss = css`
-  position: absolute;
-  background-color: var(--bg-card);
-  border-radius: 10px;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  box-shadow: 0 18px 40px rgba(30, 36, 50, 0.15);
-`
-
-export const FloatCard = styled.div<{ $side: 'left' | 'right' }>`
-  ${floatCardCss}
-  ${({ $side }) =>
-    $side === 'left'
-      ? css`
-          top: -10px;
-          left: -30px;
-          transform: rotate(-4deg);
-        `
-      : css`
-          bottom: 30px;
-          right: -24px;
-          transform: rotate(3deg);
-        `}
-`
-
-export const FloatTitle = styled.p`
-  font-weight: 600;
-  margin-bottom: 10px;
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  line-height: 1.7;
-  max-width: 520px;
-`
-
-export const FloatRow = styled.div<{ $short?: boolean }>`
-  height: 10px;
-  width: ${({ $short }) => ($short ? '80px' : '120px')};
-  background-color: var(--bar);
-  border-radius: 6px;
-  margin-bottom: 8px;
-`
-
-export const FloatTag = styled.div`
-  display: inline-flex;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px dashed rgba(63, 109, 246, 0.4);
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  margin-right: 6px;
 `

@@ -2,6 +2,18 @@ import { styled } from 'styled-components'
 
 /** 论文附件文件树。 */
 
+export const TreeIcon = styled.span`
+  display: inline-flex;
+  flex: none;
+
+  & svg {
+    width: 1em;
+    height: 1em;
+    display: block;
+    opacity: 0.75;
+  }
+`
+
 export const TreeList = styled.ul`
   list-style: none;
   padding: 0;
@@ -19,14 +31,23 @@ export const TreeSize = styled.span<{ $variant?: 'site' | 'attachment' }>`
 `
 
 export const TreeFileLink = styled.a<{ $onAttachmentPage?: boolean }>`
-  color: ${({ $onAttachmentPage }) => ($onAttachmentPage ? '#0056b3' : 'inherit')};
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: ${({ $onAttachmentPage }) => ($onAttachmentPage ? '#0056b3' : 'var(--accent-ink)')};
+
+  &:hover {
+    text-decoration: underline;
+  }
 `
 
 export const TreeSummary = styled.summary`
   cursor: pointer;
   user-select: none;
   outline: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
 `
 
 export const TreeDirLink = styled.a`
@@ -76,7 +97,6 @@ export const BackLink = styled.a`
 
 export const AttachmentCard = styled.div`
   background-color: #fff;
-  border-radius: 8px;
   padding: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 `

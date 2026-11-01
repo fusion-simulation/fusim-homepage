@@ -7,63 +7,98 @@
       name="description"
       content="聚核智算（FUSIM）是一家聚变等离子体软件SaaS服务商，致力于为科研机构和企业提供高效、精准的仿真解决方案，推动聚变能源技术的发展。"
     />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0b0714" />
+    <!-- 图标：ico 兜底在前，svg 最后声明——现代浏览器优先用矢量，老环境回落 ico -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>聚核智算 FUSIM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <style>
       /* 首屏全局样式：必须内联在 head 里，createGlobalStyle 要等 JS 执行才注入会闪白 */
+
+      /* ---------- 设计令牌：暗色（默认）——深紫 + 等离子品红 ---------- */
       :root {
-        --bg: #f7f8fb;
-        --bg-soft: #ffffff;
-        --bg-card: #ffffff;
-        --accent: #3f6df6;
-        --accent-2: #4fd1c5;
-        --text: #1e2432;
-        --text-muted: #5b667a;
-        --line: rgba(30, 36, 50, 0.12);
-        --radius-lg: 16px;
-        --radius-md: 10px;
-        --radius-sm: 6px;
-        --shadow: 0 32px 80px rgba(30, 36, 50, 0.12);
+        --bg: #0b0714;
+        --bg-soft: #130b22;
+        --bg-deep: #080410;
+        --bg-card: rgba(24, 14, 44, 0.66);
+        --surface-translucent: rgba(19, 11, 34, 0.55);
+        --accent: #e05cff;
+        --accent-deep: #8b5cf6;
+        --accent-ink: #e08fff;
+        --gold: #a78bfa;
+        --gold-deep: #8b5cf6;
+        --text: #f3edff;
+        --text-muted: #a99cc9;
+        --line: rgba(167, 139, 250, 0.16);
+        --line-strong: rgba(167, 139, 250, 0.34);
+        --grid-line: rgba(167, 139, 250, 0.05);
+        --glow-a: rgba(139, 92, 246, 0.16);
+        --glow-b: rgba(224, 92, 255, 0.1);
+        --code-bg: rgba(167, 139, 250, 0.12);
+        --metric-bg: rgba(224, 92, 255, 0.07);
+        --metric-border: rgba(224, 92, 255, 0.24);
+        --header-bg: rgba(11, 7, 20, 0.72);
+        --shadow: 0 24px 60px rgba(3, 1, 10, 0.55);
+        --shadow-card: 0 16px 44px rgba(3, 1, 10, 0.4);
+        --glow-accent: 0 12px 40px rgba(224, 92, 255, 0.22);
+        --prose-shadow: 0 24px 60px rgba(3, 1, 10, 0.45);
+
+        /* 主色 / 点缀色的 RGB 三元组：供 rgba(var(--accent-rgb), α) 辉光使用 */
+        --accent-rgb: 224, 92, 255;
+        --hl-rgb: 167, 139, 250;
+
+        --radius-lg: 0px;
+        --radius-md: 0px;
+        --radius-sm: 0px;
+        --radius-xl: 0px;
         --max-width: 1200px;
+        --max-width-wide: 1360px;
+        --header-h: 66px;
 
-        --header-bg: rgba(247, 248, 251, 0.75);
-        --surface-translucent: rgba(255, 255, 255, 0.6);
-        --bar: rgba(30, 36, 50, 0.12);
-        --dot: rgba(30, 36, 50, 0.2);
-        --metric-bg: rgba(63, 109, 246, 0.08);
-        --metric-border: rgba(63, 109, 246, 0.2);
-        --prose-shadow: 0 18px 50px rgba(30, 36, 50, 0.08);
-
-        --font-sans: "Space Grotesk", system-ui, sans-serif;
-        --font-serif: "Source Serif 4", serif;
-        --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --font-sans: "Space Grotesk", "Noto Sans SC", system-ui, "PingFang SC", "Microsoft YaHei",
+          sans-serif;
+        --font-serif: var(--font-sans);
+        --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
       }
 
-      html[data-theme="dark"] {
-        --bg: #0f1218;
-        --bg-soft: #151a23;
-        --bg-card: #161d29;
-        --accent: #79a6ff;
-        --accent-2: #5ee2d1;
-        --text: #f5f7fb;
-        --text-muted: #9aa4b5;
-        --line: rgba(255, 255, 255, 0.1);
-        --shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+      /* ---------- 亮色：薰衣草纸 ---------- */
+      html[data-theme="light"] {
+        --bg: #f5f2fb;
+        --bg-soft: #ffffff;
+        --bg-deep: #ece6f8;
+        --bg-card: rgba(255, 255, 255, 0.85);
+        --surface-translucent: rgba(255, 255, 255, 0.65);
+        --accent: #9333ea;
+        --accent-deep: #7c3aed;
+        --accent-ink: #8619c9;
+        --gold: #6d28d9;
+        --gold-deep: #5b21b6;
+        --text: #1a1029;
+        --text-muted: #5f5478;
+        --line: rgba(26, 16, 41, 0.14);
+        --line-strong: rgba(26, 16, 41, 0.28);
+        --grid-line: rgba(147, 51, 234, 0.05);
+        --glow-a: rgba(147, 51, 234, 0.1);
+        --glow-b: rgba(224, 92, 255, 0.14);
+        --code-bg: rgba(147, 51, 234, 0.08);
+        --metric-bg: rgba(147, 51, 234, 0.06);
+        --metric-border: rgba(147, 51, 234, 0.22);
+        --header-bg: rgba(245, 242, 251, 0.78);
+        --shadow: 0 32px 80px rgba(26, 16, 41, 0.12);
+        --shadow-card: 0 12px 32px rgba(26, 16, 41, 0.08);
+        --glow-accent: 0 12px 32px rgba(147, 51, 234, 0.2);
+        --prose-shadow: 0 18px 50px rgba(26, 16, 41, 0.08);
 
-        --header-bg: rgba(15, 18, 24, 0.75);
-        --surface-translucent: rgba(21, 26, 35, 0.6);
-        --bar: rgba(255, 255, 255, 0.12);
-        --dot: rgba(255, 255, 255, 0.2);
-        --metric-bg: rgba(121, 166, 255, 0.12);
-        --metric-border: rgba(121, 166, 255, 0.3);
-        --prose-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+        --accent-rgb: 147, 51, 234;
+        --hl-rgb: 109, 40, 217;
       }
 
       * {
@@ -75,24 +110,64 @@
       body {
         font-family: var(--font-sans);
         background:
-          radial-gradient(circle at 12% 10%, rgba(63, 109, 246, 0.12), transparent 40%),
-          radial-gradient(circle at 80% 18%, rgba(79, 209, 197, 0.14), transparent 45%),
+          radial-gradient(1100px 520px at 78% -8%, var(--glow-a), transparent 60%),
+          radial-gradient(900px 480px at 8% -4%, var(--glow-b), transparent 55%),
           var(--bg);
         color: var(--text);
         min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* 精细网格：只在首屏区域浮现，营造图纸感 */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background-image:
+          linear-gradient(var(--grid-line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+        background-size: 56px 56px;
+        -webkit-mask-image: radial-gradient(ellipse 95% 75% at 50% 0%, black 25%, transparent 78%);
+        mask-image: radial-gradient(ellipse 95% 75% at 50% 0%, black 25%, transparent 78%);
       }
 
       a {
         color: inherit;
         text-decoration: none;
       }
+
+      ::selection {
+        background: rgba(var(--accent-rgb), 0.32);
+        color: var(--text);
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
     </style>
     <script>
       try {
-        const theme = localStorage.getItem('theme')
-        if (theme) document.documentElement.dataset.theme = theme
+        // 暗色为默认主题（与品牌视觉一致）；URL ?theme= 可显式指定，用户切换后记住选择。
+        const fromUrl = new URLSearchParams(location.search).get('theme')
+        document.documentElement.dataset.theme =
+          fromUrl === 'light' || fromUrl === 'dark'
+            ? fromUrl
+            : (localStorage.getItem('theme') ?? 'dark')
       } catch {
-        /* localStorage 不可用时保持默认主题 */
+        /* localStorage 不可用时保持默认暗色主题 */
       }
     </script>
   </head>

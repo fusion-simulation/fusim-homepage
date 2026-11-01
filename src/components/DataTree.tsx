@@ -2,12 +2,14 @@ import type { PublicationNode } from '../lib/publication-types'
 import {
   TreeDirLink,
   TreeFileLink,
+  TreeIcon,
   TreeItem,
   TreeList,
   TreeSize,
   TreeSubtree,
   TreeSummary,
 } from '../styles/publications'
+import { FileIcon, FolderIcon } from './Icons'
 
 type DataTreeProps = {
   nodes: PublicationNode[]
@@ -30,7 +32,10 @@ export function DataTree({ nodes, variant = 'site' }: DataTreeProps) {
               download
               $onAttachmentPage={variant === 'attachment'}
             >
-              📄 {node.name}
+              <TreeIcon aria-hidden="true">
+                <FileIcon />
+              </TreeIcon>
+              {node.name}
             </TreeFileLink>
             {node.sizeStr ? <TreeSize $variant={variant}>({node.sizeStr})</TreeSize> : null}
           </TreeItem>
@@ -38,7 +43,9 @@ export function DataTree({ nodes, variant = 'site' }: DataTreeProps) {
           <TreeItem key={node.url}>
             <details>
               <TreeSummary>
-                📁{' '}
+                <TreeIcon aria-hidden="true">
+                  <FolderIcon />
+                </TreeIcon>
                 <TreeDirLink href={node.url} target="_blank">
                   {node.name}
                 </TreeDirLink>

@@ -38,7 +38,7 @@ export const proseCss = css`
   }
 
   & a {
-    color: var(--accent);
+    color: var(--accent-ink);
     text-decoration: underline;
     text-underline-offset: 3px;
   }
@@ -72,9 +72,8 @@ export const proseCss = css`
   & code {
     font-family: var(--font-mono);
     font-size: 0.95em;
-    background-color: rgba(63, 109, 246, 0.12);
+    background-color: var(--code-bg);
     padding: 0.12em 0.35em;
-    border-radius: 6px;
   }
 
   & pre {
@@ -101,11 +100,26 @@ export const ProseArticle = styled.article<{ $wide?: boolean }>`
 `
 
 export const ProseCard = styled.div`
-  background-color: var(--bg-soft);
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 34px;
   box-shadow: var(--prose-shadow);
+
+  /* 顶部等离子体光带，与卡片体系一致 */
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-deep), transparent);
+  }
 
   & > :first-child {
     margin-top: 0;

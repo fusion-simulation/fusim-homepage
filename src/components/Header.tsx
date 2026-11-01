@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { styled } from 'styled-components'
-import { site } from '../content/site'
+import { useLocation } from 'wouter'
 import {
   Brand,
-  BrandMark,
-  BrandSub,
-  BrandText,
+  BrandLogo,
   HeaderActions,
   HeaderBar,
   iconCss,
   Nav,
   NavAnchor,
+  NavCta,
   NavLink,
   NavToggle,
   ThemeButton,
@@ -19,16 +18,17 @@ import { MenuIcon, MoonIcon, SunIcon, XIcon } from './Icons'
 
 const LightIcon = styled(SunIcon)`
   ${iconCss}
-  html[data-theme="dark"] & {
-    display: none;
+  display: none;
+  html[data-theme="light"] & {
+    display: block;
   }
 `
 
 const DarkIcon = styled(MoonIcon)`
   ${iconCss}
-  display: none;
-  html[data-theme="dark"] & {
-    display: block;
+  display: block;
+  html[data-theme="light"] & {
+    display: none;
   }
 `
 
@@ -61,26 +61,37 @@ function ThemeToggle({ placement }: { placement: 'nav' | 'mobile' }) {
   )
 }
 
+const NAV_ITEMS = [
+  { href: '/products/', label: '产品矩阵' },
+  { href: '/publications/', label: '论文发表' },
+  { href: '/journal/', label: '公司新闻' },
+  { href: '/press/', label: '社会报导' },
+  { href: '/about/', label: '关于我们' },
+] as const
+
 export function Header() {
   const [open, setOpen] = useState(false)
+  const [location] = useLocation()
+
+  /** 前缀匹配：/journal/xxx/ 也让「公司新闻」保持高亮。 */
+  const isActive = (href: string) => location.startsWith(href.replace(/\/$/, ''))
 
   return (
     <HeaderBar>
-      <Brand href="/">
-        <BrandMark>F</BrandMark>
-        <BrandText>
-          <span>聚核智算</span>
-          <BrandSub>{site.slogan}</BrandSub>
-        </BrandText>
+      <Brand href="/" aria-label="聚核智算 FUSIM 首页">
+        <BrandLogo />
       </Brand>
 
       <Nav $open={open}>
-        <NavLink href="/journal/">公司新闻</NavLink>
-        <NavLink href="/press/">社会报导</NavLink>
-        <NavLink href="/products/">产品矩阵</NavLink>
+        {NAV_ITEMS.map((item) => (
+          <NavLink key={item.href} href={item.href} $active={isActive(item.href)}>
+            {item.label}
+          </NavLink>
+        ))}
         <NavAnchor href="https://docs.fusim.cn/">产品文档</NavAnchor>
-        <NavLink href="/about/">关于我们</NavLink>
-        <NavAnchor href="#contact">预约合作</NavAnchor>
+        <NavCta href="#contact" onClick={() => setOpen(false)}>
+          预约合作
+        </NavCta>
         <ThemeToggle placement="nav" />
       </Nav>
 
