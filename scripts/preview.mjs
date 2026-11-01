@@ -25,6 +25,7 @@ const MIME_TYPES = {
   '.pdf': 'application/pdf',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
 }
 
 /** 把 URL 路径安全地映射到 dist 内的文件；越界返回 null。 */
@@ -59,7 +60,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (!stats) {
-    // SPA 回退：与 GitHub Pages / nginx 的 404 文档配置一致
+    // 未命中的路径按部署环境的 404 文档处理：返回预渲染的 404.html，状态码 404
     target = path.join(distDir, '404.html')
     stats = await statFile(target)
     res.statusCode = 404

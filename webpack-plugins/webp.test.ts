@@ -548,6 +548,37 @@ test('exclude 里的源图保持原样：不转码、不记跳过', () => {
   assert.deepEqual(skipped, [])
 })
 
+test('真实配置的 passthrough 名单点名 public 里真实存在的 OG 图与 logo', async () => {
+  const { PASSTHROUGH_IMAGE_URLS } = await import('../webpack.config.mjs')
+  const publicDir = path.join(process.cwd(), 'public')
+  const sourceUrls = (exclude: readonly string[] = []) =>
+    collectImageEntries(publicDir, exclude).entries.map((entry) => entry.sourceUrl)
+
+  const all = sourceUrls()
+  // 文件被改名 / 删除时先在这里失败：名单对了也拦不住缺失的资产
+  assert.equal(all.includes('/og-image.png'), true, 'public 里应有 og-image.png')
+  assert.equal(
+    all.includes('/logos/fusim-logo-512.png'),
+    true,
+    'public 里应有 logos/fusim-logo-512.png',
+  )
+
+  const filtered = sourceUrls(PASSTHROUGH_IMAGE_URLS)
+  // 配置里漏写或拼错任一项，og:image / JSON-LD logo 就会被转成 .webp 而 404
+  assert.equal(
+    filtered.includes('/og-image.png'),
+    false,
+    'og-image.png 必须留在 passthrough 名单里',
+  )
+  assert.equal(
+    filtered.includes('/logos/fusim-logo-512.png'),
+    false,
+    'logos/fusim-logo-512.png 必须留在 passthrough 名单里',
+  )
+  // 名单过宽（比如写成 '/'）会把所有源图排除掉，转码静默失效
+  assert.equal(filtered.length > 0, true, 'passthrough 名单不应排除掉所有源图')
+})
+
 test('WebpTool 的 exclude 项按原图发进产物，不产生 .webp', async () => {
   const dir = makePublicDir(['og-image.png', 'assets/img/a.png'])
   fs.writeFileSync(path.join(dir, 'og-image.png'), 'PNG')

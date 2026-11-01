@@ -77,6 +77,7 @@ test('journal 详情 JSON-LD 追加 Article（带 datePublished 与 canonical）
   const article = graph.find((node) => node['@type'] === 'Article')
   assert.ok(article, '应有 Article 节点')
   assert.equal(article.headline, '第一篇日志')
+  assert.equal(article.image, SITE.ogImage)
   assert.equal(article.datePublished, '2026-10-01')
   assert.equal(article.mainEntityOfPage, 'https://www.fusim.cn/journal/hello/')
   assert.equal((article.author as Record<string, unknown>)['@type'], 'Organization')
@@ -176,8 +177,12 @@ test('composeShell 注入 canonical / OG / twitter / JSON-LD / 样式到 </head>
     '<meta property="og:type" content="website">',
     '<meta property="og:url" content="https://www.fusim.cn/about/">',
     '<meta property="og:image" content="https://www.fusim.cn/og-image.png">',
+    '<meta property="og:image:width" content="1200">',
+    '<meta property="og:image:height" content="630">',
+    '<meta property="og:image:alt" content="聚核智算 FUSIM">',
     '<meta property="og:locale" content="zh_CN">',
     '<meta name="twitter:card" content="summary_large_image">',
+    '<meta name="twitter:image" content="https://www.fusim.cn/og-image.png">',
     '.a{color:red}',
   ]) {
     assert.ok(html.includes(snippet), `缺少 ${snippet}`)
