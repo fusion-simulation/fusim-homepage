@@ -40,3 +40,25 @@ public/assets/pub/**/*.zip
 # 本地 agent 工具目录（内容随机器/会话变化，不入库）
 .agents/
 .pi/
+.zcode/
+.claude/
+.codex/
+.cursor/
+.windsurf/
+.copilot/
+.gemini/
+.qwen/
+.iflow/
+.kimi/
+.continue/
+.opencode/
+.roo/
+.roomodes
+.trae/
+.junie/
+.kilocode/
+.aider*
+.goose/
+.crush/
+.amp/
+.qoder/
