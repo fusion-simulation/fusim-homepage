@@ -31,10 +31,13 @@ async function findFreePort(start) {
   throw new Error(`[webpack] ${start}–65535 之间没有可用端口`)
 }
 
+/** OG 分享图与 JSON-LD logo 必须是 PNG（社交爬虫与结构化数据），跳过 WebP 转码、原样发进产物。 */
+export const PASSTHROUGH_IMAGE_URLS = ['/og-image.png', '/logos/fusim-logo-512.png']
+
 export default async (_env, argv) => {
   const mode = argv.mode ?? 'development'
   const isDev = mode !== 'production'
-  const webp = new WebpPlugin({ serve: isDev })
+  const webp = new WebpPlugin({ serve: isDev, exclude: PASSTHROUGH_IMAGE_URLS })
   const port = isDev ? await findFreePort(DEV_PORT) : DEV_PORT
 
   if (isDev && port !== DEV_PORT) {

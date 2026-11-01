@@ -119,12 +119,17 @@ function occupancyKey(rel: string): string {
  *
  * `public/` 中已存在的 `.webp` 先占位（同源图跳过，避免覆盖用户资源）；
  * 同名不同扩展名的源图只保留排序靠前的一张，其余记为重复目标。
+ * `exclude` 里的源 URL 完全不参与（不转码、不占目标、不记跳过），原图由 assets() 原样发进产物。
  */
-export function collectImageEntries(publicDir: string): {
+export function collectImageEntries(
+  publicDir: string,
+  exclude: readonly string[] = [],
+): {
   entries: ImageEntry[]
   skipped: SkippedImage[]
 } {
   const files = fs.existsSync(publicDir) ? scanFiles(publicDir) : []
+  const excluded = new Set(exclude)
 
   const occupied = new Map<string, 'existing' | 'generated'>()
   for (const file of files) {
@@ -137,6 +142,9 @@ export function collectImageEntries(publicDir: string): {
   const skipped: SkippedImage[] = []
 
   for (const file of files) {
+    // 排除项在扩展名过滤之前出局：既不算可转码源图，也不占用同名目标
+    if (excluded.has(`/${file.rel}`)) continue
+
     const rawExtension = path.posix.extname(file.rel)
     if (!SOURCE_EXTENSIONS.includes(rawExtension.toLowerCase())) continue
 
@@ -291,12 +299,16 @@ export function formatPercent(sourceBytes: number, outputBytes: number): string 
   return percent >= 0 ? `-${percent}%` : `+${-percent}%`
 }
 
-/** 插件 / loader 选项：转码质量、压缩投入、缓存目录；`serve` 表示跑在 dev server 下。 */
+/**
+ * 插件 / loader 选项：转码质量、压缩投入、缓存目录；`serve` 表示跑在 dev server 下；
+ * `exclude` 是不参与转码、原样发进产物的源 URL（精确匹配，含前导 `/`）。
+ */
 export type WebpToolOptions = {
   quality?: number
   effort?: number
   cacheDir?: string
   serve?: boolean
+  exclude?: readonly string[]
 }
 
 /** 插件在 apply 时注入的目录：loader / 中间件 / 资源发布共用同一份。 */
@@ -325,6 +337,8 @@ export class WebpTool {
   /** 是否跑在 dev server 下：没有预转换，字节由中间件按需补。 */
   readonly serve: boolean
   readonly cacheDirOption: string | undefined
+  /** 不参与转码的源 URL：OG 图等必须保持原格式的文件。 */
+  readonly exclude: readonly string[]
 
   private bindings: WebpBindings | undefined
   /** 扫描结果：每次 rescan 都重扫，转码与改写集都从这里取。 */
@@ -344,6 +358,7 @@ export class WebpTool {
     }
     this.serve = options.serve ?? false
     this.cacheDirOption = options.cacheDir
+    this.exclude = options.exclude ?? []
   }
 
   /** 由 webpack 插件注入目录；重复调用幂等。 */
@@ -359,7 +374,7 @@ export class WebpTool {
 
   /** 重扫 `public/`；dev 下改写集必须与扫描实时同步，否则新增图片永远不被改写、删掉的还能被改写。 */
   rescan(): void {
-    const scan = collectImageEntries(this.env.publicDir)
+    const scan = collectImageEntries(this.env.publicDir, this.exclude)
     this.entries = scan.entries
     this.lastScanAt = Date.now()
     for (const item of scan.skipped) {

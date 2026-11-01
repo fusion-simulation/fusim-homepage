@@ -534,3 +534,35 @@ test('报告百分比：聚合变大时输出 +N%，不钳为 0', () => {
   assert.equal(formatPercent(1000, 100), '-90%')
   assert.equal(formatPercent(1000, 1070), '+7%')
 })
+
+test('exclude 里的源图保持原样：不转码、不记跳过', () => {
+  const dir = makePublicDir(['og-image.png', 'logos/fusim-logo-512.png', 'assets/img/a.png'])
+  const { entries, skipped } = collectImageEntries(dir, [
+    '/og-image.png',
+    '/logos/fusim-logo-512.png',
+  ])
+  assert.deepEqual(
+    entries.map((entry) => entry.sourceRel),
+    ['assets/img/a.png'],
+  )
+  assert.deepEqual(skipped, [])
+})
+
+test('WebpTool 的 exclude 项按原图发进产物，不产生 .webp', async () => {
+  const dir = makePublicDir(['og-image.png', 'assets/img/a.png'])
+  fs.writeFileSync(path.join(dir, 'og-image.png'), 'PNG')
+  const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fusim-webp-cache-'))
+  dirs.push(cacheDir)
+
+  const tool = new WebpTool({ serve: true, exclude: ['/og-image.png'] })
+  tool.bind({ publicDir: dir, cacheDir })
+  await tool.prepare()
+
+  assert.deepEqual(
+    tool.entries.map((entry) => entry.sourceRel),
+    ['assets/img/a.png'],
+  )
+  const assets = tool.assets()
+  assert.deepEqual(assets.map((asset) => asset.name).sort(), ['assets/img/a.png', 'og-image.png'])
+  assert.equal(assets.find((asset) => asset.name === 'og-image.png')?.data.toString(), 'PNG')
+})
