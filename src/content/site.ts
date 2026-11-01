@@ -2,6 +2,8 @@
  * 站点级数据，对应原 Lume 站点的 `data.ts`。
  */
 export const site = {
+  /** 生产域名（canonical / OG / sitemap / robots 的唯一来源）。 */
+  url: 'https://www.fusim.cn',
   name: '聚核智算',
   slogan: '打造新一代聚变仿真工业软件',
   slogan2: '探索聚变仿真软件，为实现终极能源赋能',
