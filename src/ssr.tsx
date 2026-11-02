@@ -31,9 +31,18 @@ export type RenderedPage = {
   styles: string
 }
 
-/** 全部要预渲染的路由：静态页 + MDX 内容页 + 论文附件目录页。 */
+/**
+ * 全部要预渲染的路由：静态页 + MDX 内容页 + 论文附件目录页。
+ * product_section（产品分组片段）只作为 /products/ 页的一部分渲染，没有独立页面，不进入预渲染与 sitemap。
+ */
 export const routes: string[] = [
-  ...new Set([...staticRoutePaths, ...contentPageByUrl.keys(), ...attachmentDirByUrl.keys()]),
+  ...new Set([
+    ...staticRoutePaths,
+    ...[...contentPageByUrl.values()]
+      .filter((page) => page.kind !== 'product_section')
+      .map((page) => page.url),
+    ...attachmentDirByUrl.keys(),
+  ]),
 ].sort()
 
 function isKnownPath(url: string): boolean {
