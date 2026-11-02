@@ -167,3 +167,122 @@ export function htmlFileFor(url: string): string {
   const route = url.replace(/^\/+/, '').replace(/\/+$/, '')
   return route ? `${route}/index.html` : 'index.html'
 }
+
+/* ---------- 响应式图片门禁：srcSet 候选提取与属性契约 ---------- */
+
+/** 一个 `<img>` 标签解析后的结果：属性名统一小写（React 输出的 `srcSet` 也能吃到）。 */
+export type HtmlImage = {
+  attrs: Record<string, string>
+  /** `srcSet` 拆出的候选：URL + 描述符。 */
+  candidates: Array<{ url: string; descriptor: string }>
+}
+
+const IMG_TAG = /<img\b([^>]*)>/gi
+const ATTRIBUTE = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/g
+
+/** 解析 `srcSet`：data URL 整体算一个候选（内部逗号不拆），其余按逗号分隔。 */
+function parseSrcSet(value: string): Array<{ url: string; descriptor: string }> {
+  if (/^\s*data:/i.test(value)) return [{ url: value.trim(), descriptor: '' }]
+
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [url, ...rest] = part.split(/\s+/)
+      return { url, descriptor: rest.join(' ') }
+    })
+}
+
+/** 解析页面里所有 `<img>`：单/双引号与无引号属性都吃，属性名统一小写。 */
+export function extractImages(html: string): HtmlImage[] {
+  const images: HtmlImage[] = []
+
+  for (const tag of html.matchAll(IMG_TAG)) {
+    const attrs: Record<string, string> = {}
+    for (const attribute of tag[1].matchAll(ATTRIBUTE)) {
+      attrs[attribute[1].toLowerCase()] = attribute[2] ?? attribute[3] ?? attribute[4] ?? ''
+    }
+    images.push({ attrs, candidates: parseSrcSet(attrs.srcset ?? '') })
+  }
+
+  return images
+}
+
+/** 站内路径：以单个 `/` 开头（`//cdn…` 是协议相对外链）。 */
+function isSitePath(url: string): boolean {
+  return /^\/(?!\/)/.test(url)
+}
+
+/** 去掉 query/hash 并解码：产物里是真实文件名（可能含空格等字符）。 */
+function assetPathOf(url: string): string {
+  const pathname = url.split(/[?#]/, 1)[0]
+  try {
+    return decodeURIComponent(pathname)
+  } catch {
+    return pathname
+  }
+}
+
+/**
+ * 页面里所有站内图片候选（`src` + `srcSet` 的每个 URL），按文档顺序去重、已解码。
+ * 外链、协议相对与 data URL 不归产物管，直接跳过。
+ */
+export function extractImageCandidates(html: string): string[] {
+  const seen = new Set<string>()
+  const candidates: string[] = []
+
+  for (const image of extractImages(html)) {
+    const urls = [image.attrs.src ?? '', ...image.candidates.map((candidate) => candidate.url)]
+    for (const url of urls) {
+      if (!isSitePath(url)) continue
+      const assetPath = assetPathOf(url)
+      if (seen.has(assetPath)) continue
+      seen.add(assetPath)
+      candidates.push(assetPath)
+    }
+  }
+
+  return candidates
+}
+
+/**
+ * 响应式图片门禁：属性契约 + 站内候选必须真实存在。
+ *
+ * 契约（与 `ResponsiveImage` 的输出一致）：
+ * - 每张图都有描述内容的 `alt`、数值型 `width` / `height`（固定宽高比，避免 CLS）；
+ * - 带 `w` 描述符的 `srcSet` 必须有 `sizes`；
+ * - `sizes` 以 `auto` 开头时必须 `loading="lazy"`（`sizes=auto` 依赖懒加载按真实槽位选图）。
+ *
+ * 返回问题列表：空数组表示通过。调用方决定抛错时机（本项目的预渲染在写盘前抛）。
+ */
+export function checkPageImages(html: string, exists: (assetPath: string) => boolean): string[] {
+  const issues: string[] = []
+
+  for (const image of extractImages(html)) {
+    const { attrs, candidates } = image
+    const label = attrs.src ? `图片 ${attrs.src}` : '图片'
+
+    if (!attrs.alt) issues.push(`${label}：缺少描述内容的 alt`)
+    if (!/^\d+$/.test(attrs.width ?? '')) issues.push(`${label}：width 必须是数值`)
+    if (!/^\d+$/.test(attrs.height ?? '')) issues.push(`${label}：height 必须是数值`)
+
+    const hasWidthDescriptor = candidates.some((candidate) => /\b\d+w$/.test(candidate.descriptor))
+    if (candidates.length > 0 && hasWidthDescriptor && !attrs.sizes) {
+      issues.push(`${label}：w 描述符的 srcSet 必须带 sizes`)
+    }
+    if (
+      attrs.sizes &&
+      /^auto\b/i.test(attrs.sizes.trim()) &&
+      attrs.loading?.toLowerCase() !== 'lazy'
+    ) {
+      issues.push(`${label}：sizes 以 auto 开头时必须 loading="lazy"`)
+    }
+  }
+
+  for (const candidate of extractImageCandidates(html)) {
+    if (!exists(candidate)) issues.push(`图片候选不存在：${candidate}`)
+  }
+
+  return issues
+}

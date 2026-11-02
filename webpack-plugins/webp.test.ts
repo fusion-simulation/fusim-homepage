@@ -8,6 +8,7 @@ import sharp from 'sharp'
 import {
   cachePathFor,
   collectImageEntries,
+  ENCODE_CONCURRENCY,
   encodeWebp,
   ensureWebp,
   formatPercent,
@@ -363,12 +364,16 @@ function makeRes() {
 /** 造一个绑好目录的工具实例；build 用 serve=false，dev 用 serve=true。 */
 function makeTool(
   publicDir: string,
-  options: { serve?: boolean; cacheDir?: string } = {},
+  options: { serve?: boolean; cacheDir?: string; variantWidths?: readonly number[] } = {},
 ): WebpTool {
   // 缓存目录必须在 public 之外，否则会被当成源图扫描进产物
   const cacheDir = options.cacheDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'fusim-webp-cache-'))
   if (!options.cacheDir) dirs.push(cacheDir)
-  const tool = new WebpTool({ serve: options.serve, cacheDir })
+  const tool = new WebpTool({
+    serve: options.serve,
+    cacheDir,
+    variantWidths: options.variantWidths,
+  })
   tool.bind({ publicDir, cacheDir })
   return tool
 }
@@ -596,4 +601,288 @@ test('WebpTool 的 exclude 项按原图发进产物，不产生 .webp', async ()
   const assets = tool.assets()
   assert.deepEqual(assets.map((asset) => asset.name).sort(), ['assets/img/a.png', 'og-image.png'])
   assert.equal(assets.find((asset) => asset.name === 'og-image.png')?.data.toString(), 'PNG')
+})
+
+/* ---------- 多宽度变体：响应式图片的构建侧 ---------- */
+
+const VARIANTS: readonly number[] = [480, 800, 1200, 1600]
+
+/** 造一张指定尺寸的 PNG / GIF（GIF 多帧用于验证变体不丢帧）。 */
+async function writeSizedImage(
+  abs: string,
+  width: number,
+  height: number,
+  frames = 1,
+): Promise<void> {
+  const buffers = await Promise.all(
+    Array.from({ length: frames }, (_, index) =>
+      sharp({
+        create: {
+          width,
+          height,
+          channels: 3,
+          background: { r: 20 * index, g: 80, b: 160 },
+        },
+      })
+        .png()
+        .toBuffer(),
+    ),
+  )
+  fs.mkdirSync(path.dirname(abs), { recursive: true })
+  if (frames > 1) {
+    fs.writeFileSync(
+      abs,
+      await sharp(buffers, { join: { animated: true } })
+        .gif()
+        .toBuffer(),
+    )
+  } else {
+    fs.writeFileSync(abs, buffers[0])
+  }
+}
+
+/** 临时接管 console.warn，返回收集到的文案。 */
+function captureWarnings(): { lines: string[]; restore: () => void } {
+  const lines: string[] = []
+  const original = console.warn
+  console.warn = (...args: unknown[]) => void lines.push(args.map(String).join(' '))
+  return { lines, restore: () => (console.warn = original) }
+}
+
+test('变体：480w 动图保留帧数与宽高比，小图不被放大', async () => {
+  const dir = makePublicDir([])
+  const anim = path.join(dir, 'anim.gif')
+  await writeSizedImage(anim, 600, 300, 3)
+
+  const base = await encodeWebp(anim, { quality: 75, effort: 4 })
+  const variant = await encodeWebp(anim, { quality: 75, effort: 4, width: 480 })
+  const baseMeta = await sharp(base, { animated: true }).metadata()
+  const variantMeta = await sharp(variant, { animated: true }).metadata()
+
+  assert.equal(baseMeta.width, 600)
+  assert.equal(variantMeta.pages, 3, '变体必须保留全部帧')
+  assert.equal(variantMeta.width, 480)
+  assert.equal(variantMeta.pageHeight, 240, '600×300 缩到 480w 后每帧应是 480×240')
+
+  // 源图比目标宽度还小：resize 带 withoutEnlargement，不能放大
+  const small = path.join(dir, 'small.png')
+  await writeSizedImage(small, 64, 32)
+  const upscaled = await encodeWebp(small, { quality: 75, effort: 4, width: 480 })
+  const upscaledMeta = await sharp(upscaled).metadata()
+  assert.equal(upscaledMeta.width, 64)
+  assert.equal(upscaledMeta.height, 32)
+})
+
+test('变体：缓存键随目标宽度隔离', () => {
+  const dir = makePublicDir(['img/a.png'])
+  const { entries } = collectImageEntries(dir)
+  const cacheDir = path.join(dir, 'cache')
+  const stats = { mtimeMs: 1, size: 2 }
+  const base = cachePathFor(cacheDir, entries[0], stats, { quality: 75, effort: 4 })
+  const w480 = cachePathFor(cacheDir, entries[0], stats, { quality: 75, effort: 4, width: 480 })
+  const w800 = cachePathFor(cacheDir, entries[0], stats, { quality: 75, effort: 4, width: 800 })
+  assert.notEqual(w480, base)
+  assert.notEqual(w800, base)
+  assert.notEqual(w480, w800)
+})
+
+test('build：发布 base 与小于源宽的变体，不再发布源图', async () => {
+  const dir = makePublicDir([])
+  await writeSizedImage(path.join(dir, 'img/a.png'), 1000, 500)
+  const tool = makeTool(dir, { variantWidths: VARIANTS })
+  await tool.prepare()
+
+  const assets = tool.assets()
+  assert.deepEqual(assets.map((asset) => asset.name).sort(), [
+    'img/a-480.webp',
+    'img/a-800.webp',
+    'img/a.webp',
+  ])
+  const variant = assets.find((asset) => asset.name === 'img/a-480.webp')
+  assert.ok(variant)
+  assert.equal((await sharp(variant.data).metadata()).width, 480)
+})
+
+test('build：候选宽度不小于源宽时不生成（2100px 源图只有 480/800/1200/1600 + base）', async () => {
+  const dir = makePublicDir([])
+  await writeSizedImage(path.join(dir, 'img/big.png'), 2100, 1000)
+  const tool = makeTool(dir, { variantWidths: VARIANTS })
+  await tool.prepare()
+  assert.deepEqual(
+    tool
+      .assets()
+      .map((asset) => asset.name)
+      .sort(),
+    [
+      'img/big-1200.webp',
+      'img/big-1600.webp',
+      'img/big-480.webp',
+      'img/big-800.webp',
+      'img/big.webp',
+    ],
+  )
+})
+
+test('dev 中间件：按需服务变体 URL，新增源图重扫后变体同样可用', async () => {
+  const dir = makePublicDir([])
+  await writeSizedImage(path.join(dir, 'img/a.png'), 1000, 500)
+  const tool = makeTool(dir, { serve: true, variantWidths: VARIANTS })
+  await tool.prepare()
+  const nextCalls: string[] = []
+  const request = makeRequest(tool, nextCalls)
+
+  const variant = await request('/img/a-480.webp?v=2')
+  assert.equal(variant.statusCode, 200)
+  assert.equal(variant.headers['Content-Type'], 'image/webp')
+  assert.equal((await sharp(variant.body as Buffer).metadata()).width, 480)
+
+  const base = await request('/img/a.webp')
+  assert.equal(base.statusCode, 200)
+  assert.equal((await sharp(base.body as Buffer).metadata()).width, 1000)
+  assert.deepEqual(nextCalls, [])
+
+  // 新增源图：过了重扫间隔后，它的变体也能按需生成
+  await writeSizedImage(path.join(dir, 'img/b.png'), 1000, 500)
+  await new Promise((resolve) => setTimeout(resolve, 1100))
+  const added = await request('/img/b-800.webp')
+  assert.equal(added.statusCode, 200)
+  assert.equal((await sharp(added.body as Buffer).metadata()).width, 800)
+})
+
+test('冲突：public 已有变体文件时不覆盖、整组放弃并保留原图', async () => {
+  const dir = makePublicDir([])
+  const userFile = path.join(dir, 'img/a-480.webp')
+  fs.mkdirSync(path.dirname(userFile), { recursive: true })
+  fs.writeFileSync(userFile, 'USER-WEBP')
+  await writeSizedImage(path.join(dir, 'img/a.png'), 1000, 500)
+
+  const tool = makeTool(dir, { variantWidths: VARIANTS })
+  const warnings = captureWarnings()
+  try {
+    await tool.prepare()
+  } finally {
+    warnings.restore()
+  }
+
+  assert.equal(tool.rewrite('src="/img/a.png"'), 'src="/img/a.png"')
+  const assets = tool.assets()
+  assert.equal(
+    assets.find((asset) => asset.name === 'img/a-480.webp')?.data.toString(),
+    'USER-WEBP',
+  )
+  assert.ok(
+    assets.some((asset) => asset.name === 'img/a.png'),
+    '应发布原图',
+  )
+  assert.equal(
+    assets.some((asset) => asset.name === 'img/a.webp'),
+    false,
+    '整组放弃时不能只发布 base',
+  )
+  assert.match(warnings.lines.join('\n'), /img\/a-480\.webp/)
+})
+
+test('冲突：另一源图占用变体名时后者的整组放弃', async () => {
+  const dir = makePublicDir([])
+  await writeSizedImage(path.join(dir, 'img/a.png'), 1000, 500)
+  await writeSizedImage(path.join(dir, 'img/a-480.png'), 300, 200)
+
+  const tool = makeTool(dir, { variantWidths: VARIANTS })
+  const warnings = captureWarnings()
+  try {
+    await tool.prepare()
+  } finally {
+    warnings.restore()
+  }
+
+  // img/a-480.png 先占住 img/a-480.webp（它自己不足 480，不再生成变体）
+  assert.equal(tool.rewrite('src="/img/a-480.png"'), 'src="/img/a-480.webp"')
+  assert.equal(tool.rewrite('src="/img/a.png"'), 'src="/img/a.png"')
+  assert.deepEqual(
+    tool
+      .assets()
+      .map((asset) => asset.name)
+      .sort(),
+    ['img/a-480.webp', 'img/a.png'],
+  )
+  assert.match(warnings.lines.join('\n'), /img\/a-480\.webp/)
+})
+
+test('失败：任一变体编码失败则整组放弃，原图保留且报错可定位', async () => {
+  const dir = makePublicDir([])
+  await writeSizedImage(path.join(dir, 'img/a.png'), 1000, 500)
+
+  const tool = makeTool(dir, { variantWidths: VARIANTS })
+  const warnings = captureWarnings()
+  const restore = setSharpLoader(async () => {
+    // 只有带 resize 的变体编码会失败：base 编码不调用 resize
+    return ((input: string, options?: unknown) => {
+      const instance = sharp(input, options as never) as unknown as {
+        resize?: () => never
+      }
+      instance.resize = () => {
+        throw new Error('resize boom')
+      }
+      return instance
+    }) as never
+  })
+  try {
+    await tool.prepare()
+  } finally {
+    setSharpLoader(restore)
+    warnings.restore()
+  }
+
+  assert.equal(tool.rewrite('src="/img/a.png"'), 'src="/img/a.png"')
+  assert.deepEqual(
+    tool.assets().map((asset) => asset.name),
+    ['img/a.png'],
+  )
+  const text = warnings.lines.join('\n')
+  assert.match(text, /img\/a\.png/)
+  assert.match(text, /480w|resize boom/)
+})
+
+test('并发：base 与变体任务整批限流，同时在编不超过 ENCODE_CONCURRENCY', async () => {
+  const dir = makePublicDir([])
+  // 两张 2100px 源图 = 2 ×（base + 4 个变体）= 10 个任务，足够观察上限
+  await writeSizedImage(path.join(dir, 'img/a.png'), 2100, 400)
+  await writeSizedImage(path.join(dir, 'img/b.png'), 2100, 400)
+
+  const tool = makeTool(dir, { variantWidths: VARIANTS })
+  let inFlight = 0
+  let peak = 0
+  let encodes = 0
+
+  const restore = setSharpLoader(async () => {
+    return ((input: string, options?: unknown) => {
+      const instance = sharp(input, options as never) as unknown as {
+        toBuffer: (...args: unknown[]) => Promise<Buffer>
+      }
+      const original = instance.toBuffer.bind(instance)
+      instance.toBuffer = async (...args: unknown[]) => {
+        inFlight += 1
+        encodes += 1
+        peak = Math.max(peak, inFlight)
+        try {
+          // 留出重叠窗口，否则任务会一个接一个瞬间完成，测不到并发
+          await new Promise((resolve) => setTimeout(resolve, 20))
+          return await original(...args)
+        } finally {
+          inFlight -= 1
+        }
+      }
+      return instance
+    }) as never
+  })
+
+  try {
+    await tool.prepare()
+  } finally {
+    setSharpLoader(restore)
+  }
+
+  assert.equal(encodes, 10, 'base + 变体都应编码一次')
+  assert.ok(peak > 1, `应真的并行编码（观察到峰值 ${peak}）`)
+  assert.ok(peak <= ENCODE_CONCURRENCY, `峰值并发 ${peak} 超过上限 ${ENCODE_CONCURRENCY}`)
 })

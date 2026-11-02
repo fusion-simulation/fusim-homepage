@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import ReactRefreshWebpackPlugin from '@pmmmwh/react-refresh-webpack-plugin'
 import HtmlWebpackPlugin from 'html-webpack-plugin'
 import webpack from 'webpack'
+import { IMAGE_VARIANT_WIDTHS } from './src/lib/responsive-image.ts'
 import { WebpPlugin } from './webpack-plugins/webp.ts'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
@@ -73,7 +74,12 @@ export function createModuleRules({ isDev }) {
 export default async (_env, argv) => {
   const mode = argv.mode ?? 'development'
   const isDev = mode !== 'production'
-  const webp = new WebpPlugin({ serve: isDev, exclude: PASSTHROUGH_IMAGE_URLS })
+  const webp = new WebpPlugin({
+    serve: isDev,
+    exclude: PASSTHROUGH_IMAGE_URLS,
+    // 与运行时 srcSet 共用同一份候选宽度：构建产物与标记必须一一对应
+    variantWidths: IMAGE_VARIANT_WIDTHS,
+  })
   const port = isDev ? await findFreePort(DEV_PORT) : DEV_PORT
 
   if (isDev && port !== DEV_PORT) {

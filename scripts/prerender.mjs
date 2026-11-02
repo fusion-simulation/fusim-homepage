@@ -8,10 +8,12 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import webpack from 'webpack'
+import { IMAGE_VARIANT_WIDTHS } from '../src/lib/responsive-image.ts'
 import { createModuleRules, PASSTHROUGH_IMAGE_URLS } from '../webpack.config.mjs'
 import {
   buildRobots,
   buildSitemap,
+  checkPageImages,
   composeShell,
   htmlFileFor,
 } from '../webpack-plugins/prerender.ts'
@@ -42,7 +44,11 @@ const serverConfig = {
       path.join(root, 'webpack-plugins/virtual-publications.js'),
     ),
     // serve: true 只登记工具并算出改写集，不转码、不发资源（与 dev 同一套注册机制）
-    new WebpPlugin({ serve: true, exclude: PASSTHROUGH_IMAGE_URLS }),
+    new WebpPlugin({
+      serve: true,
+      exclude: PASSTHROUGH_IMAGE_URLS,
+      variantWidths: IMAGE_VARIANT_WIDTHS,
+    }),
   ],
   optimization: { minimize: false },
   performance: { hints: false },
@@ -121,10 +127,26 @@ function assertWebpAssets(html, url) {
   }
 }
 
+/**
+ * 写盘前的图片门禁：
+ * 1. 任何 `.webp` 引用（属性、srcSet、JSON 字符串）都必须在 dist 里有文件；
+ * 2. `<img>` 必须满足响应式属性契约（alt / 数值宽高 / `w` srcSet 带 sizes / auto sizes 配 lazy），
+ *    且 `src` 与 srcSet 的每个站内候选逐个存在。
+ */
+function assertPageImages(html, url) {
+  assertWebpAssets(html, url)
+
+  const distOf = (assetPath) => existsSync(path.join(distDir, assetPath))
+  const issues = checkPageImages(html, distOf)
+  if (issues.length > 0) {
+    throw new Error(`[fusim:prerender] ${url} 的页面图片不合法：\n  ${issues.join('\n  ')}`)
+  }
+}
+
 for (const page of pages) {
   const html = composeShell(shell, page, siteInfo)
   // 先校验再落盘：缺图的 HTML 不该进产物
-  assertWebpAssets(html, page.url)
+  assertPageImages(html, page.url)
   const file = path.join(distDir, htmlFileFor(page.url))
   await mkdir(path.dirname(file), { recursive: true })
   await writeFile(file, html)
@@ -132,7 +154,7 @@ for (const page of pages) {
 
 const notFound = render(NOT_FOUND_PATH)
 const notFoundHtml = composeShell(shell, notFound, siteInfo)
-assertWebpAssets(notFoundHtml, NOT_FOUND_PATH)
+assertPageImages(notFoundHtml, NOT_FOUND_PATH)
 await writeFile(path.join(distDir, '404.html'), notFoundHtml)
 await writeFile(path.join(distDir, 'sitemap.xml'), buildSitemap(pages, siteInfo))
 await writeFile(path.join(distDir, 'robots.txt'), buildRobots(siteInfo))

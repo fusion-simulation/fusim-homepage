@@ -39,8 +39,8 @@ export const SOURCE_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.
 
 const WEBP_EXTENSION = '.webp'
 
-/** 缓存键的语义版本：编码逻辑变化（如新增 EXIF 自动摆正）时升版，旧产物自然全部失效不会误复用。 */
-export const CACHE_KEY_VERSION = 'v2'
+/** 缓存键的语义版本：编码逻辑变化（如新增 EXIF 自动摆正、多宽度变体）时升版，旧产物自然全部失效不会误复用。 */
+export const CACHE_KEY_VERSION = 'v3'
 
 /** 一张待转换图片：`rel` 用 posix 分隔符且不带前导 `/`，`url` 带前导 `/`。 */
 export type ImageEntry = {
@@ -52,10 +52,22 @@ export type ImageEntry = {
   targetUrl: string
 }
 
-/** 被跳过的源图片：`duplicate-target` 表示目标已被另一张源图占用，`target-exists` 表示 public 里已有同名 `.webp`。 */
+/**
+ * 被跳过的源图片：
+ * - `target-exists`：public 里已有同名 `.webp`（用户文件优先，不覆盖）；
+ * - `duplicate-target`：目标已被另一张源图占用；
+ * - `variant-conflict`：某个变体目标已被占用——整组响应式图片放弃，只发原图。
+ */
 export type SkippedImage = {
   sourceRel: string
-  reason: 'duplicate-target' | 'target-exists'
+  reason: 'duplicate-target' | 'target-exists' | 'variant-conflict'
+  /** `variant-conflict` 时被占用的变体路径。 */
+  conflictRel?: string
+}
+
+/** 变体目标路径：`img/a.webp` → `img/a-480.webp`，与运行时 `imageVariantUrl` 的命名规则一致。 */
+export function variantRelFor(targetRel: string, width: number): string {
+  return `${targetRel.slice(0, targetRel.length - WEBP_EXTENSION.length)}-${width}${WEBP_EXTENSION}`
 }
 
 type ScannedFile = {
@@ -124,6 +136,7 @@ function occupancyKey(rel: string): string {
 export function collectImageEntries(
   publicDir: string,
   exclude: readonly string[] = [],
+  variantWidths: readonly number[] = [],
 ): {
   entries: ImageEntry[]
   skipped: SkippedImage[]
@@ -131,7 +144,7 @@ export function collectImageEntries(
   const files = fs.existsSync(publicDir) ? scanFiles(publicDir) : []
   const excluded = new Set(exclude)
 
-  const occupied = new Map<string, 'existing' | 'generated'>()
+  const occupied = new Map<string, 'existing' | 'source' | 'variant'>()
   for (const file of files) {
     if (path.posix.extname(file.rel).toLowerCase() === WEBP_EXTENSION) {
       occupied.set(occupancyKey(file.rel), 'existing')
@@ -159,7 +172,17 @@ export function collectImageEntries(
       continue
     }
 
-    occupied.set(occupancyKey(targetRel), 'generated')
+    // 变体名先占位校验：被 public 文件或别的源图占用时整组放弃，
+    // 否则 srcSet 会指向别人的内容（宽度描述符对不上，等于坏图）
+    const variantRels = variantWidths.map((width) => variantRelFor(targetRel, width))
+    const conflictRel = variantRels.find((rel) => occupied.has(occupancyKey(rel)))
+    if (conflictRel) {
+      skipped.push({ sourceRel: file.rel, reason: 'variant-conflict', conflictRel })
+      continue
+    }
+
+    occupied.set(occupancyKey(targetRel), 'source')
+    for (const rel of variantRels) occupied.set(occupancyKey(rel), 'variant')
     entries.push({
       sourceRel: file.rel,
       sourceAbs: file.abs,
@@ -196,8 +219,11 @@ export function rewriteReferences(code: string, entries: ImageEntry[]): string |
   return result === code ? null : result
 }
 
-/** 编码参数：`quality` 为 WebP 质量（1-100），`effort` 为 libwebp 压缩投入（0-6）。 */
-export type EncodeOptions = { quality: number; effort: number }
+/**
+ * 编码参数：`quality` 为 WebP 质量（1-100），`effort` 为 libwebp 压缩投入（0-6）；
+ * `width` 是变体的目标宽度，缺省表示按源宽出 base。`withoutEnlargement` 保证小图不被放大。
+ */
+export type EncodeOptions = { quality: number; effort: number; width?: number }
 
 /**
  * 把单张源图转成 WebP。
@@ -211,11 +237,13 @@ export async function encodeWebp(sourceAbs: string, options: EncodeOptions): Pro
     const { pages } = await factory(sourceAbs).metadata()
     const pipeline =
       pages !== undefined && pages > 1 ? factory(sourceAbs, { animated: true }) : factory(sourceAbs)
-    // 自动按 EXIF 方向摆正（rotate 无参）：输出会丢 orientation 标签，必须在编码前把朝向应用到像素上
-    return await pipeline
-      .rotate()
-      .webp({ quality: options.quality, effort: options.effort })
-      .toBuffer()
+    // 自动按 EXIF 方向摆正（rotate 无参）：输出会丢 orientation 标签，必须在编码前把朝向应用到像素上；
+    // 变体在摆正之后按目标宽度缩放（动图会逐帧缩放并保留帧数）
+    const oriented =
+      options.width === undefined
+        ? pipeline.rotate()
+        : pipeline.rotate().resize({ width: options.width, withoutEnlargement: true })
+    return await oriented.webp({ quality: options.quality, effort: options.effort }).toBuffer()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     if (message.startsWith('[fusim:webp] 无法加载 sharp（请先 npm i -D sharp）')) {
@@ -240,7 +268,8 @@ export function cachePathFor(
   stats: { mtimeMs: number; size: number },
   options: EncodeOptions,
 ): string {
-  const key = `${CACHE_KEY_VERSION}|${entry.sourceRel}|${stats.mtimeMs}|${stats.size}|q${options.quality}e${options.effort}`
+  const widthKey = options.width === undefined ? 'w-base' : `w${options.width}`
+  const key = `${CACHE_KEY_VERSION}|${entry.sourceRel}|${stats.mtimeMs}|${stats.size}|q${options.quality}e${options.effort}|${widthKey}`
   return path.join(cacheDir, `${crypto.createHash('sha1').update(key).digest('hex')}.webp`)
 }
 
@@ -269,15 +298,42 @@ export async function ensureWebp(
 /** 编码缺省参数：本项目的自选默认，构建间保持稳定（sharp 自身的 WebP quality 默认是 80，75 是有意的选择）。 */
 const DEFAULTS: EncodeOptions = { quality: 75, effort: 4 }
 
-/** 每批并发转码的张数：动图动辄 43 MB，控制同时驻留内存的规模。 */
-const BATCH_SIZE = 4
+/**
+ * 同时在编的任务上限（base 与每个变体都算一个任务）：
+ * 多帧动图动辄 40 MB，不限流会让多个宽度同时驻留内存。
+ */
+export const ENCODE_CONCURRENCY = 4
 
-/** 一次成功转码的记录：发布阶段只把成功项写进产物。 */
+/** 一个已写入缓存的编码结果。 */
+type EncodedFile = { cachePath: string; outputBytes: number }
+
+/**
+ * 一次成功的整组转码：base + 变体。
+ * 任一变体失败整组都不进 converted——srcSet 里的候选必须成套存在，否则就是半套坏图。
+ */
 type Converted = {
   entry: ImageEntry
-  cachePath: string
+  base: EncodedFile
+  variants: Array<{ width: number; rel: string; file: EncodedFile }>
   sourceBytes: number
-  outputBytes: number
+}
+
+/** 读源图宽度：动图的 `metadata().height` 是「帧高 × 帧数」，宽度才是候选过滤要的值。 */
+async function sourceWidth(sourceAbs: string): Promise<number> {
+  try {
+    const factory = await loadSharp()
+    const { width } = await factory(sourceAbs).metadata()
+    if (typeof width !== 'number' || width <= 0) throw new Error('读不到图片宽度')
+    return width
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`[fusim:webp] 读取尺寸失败 ${sourceAbs}：${message}`, { cause: error })
+  }
+}
+
+/** 统一的错误文案：错误对象取 message，其余按字符串。 */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 /** 报告用的人类可读字节数。 */
@@ -309,6 +365,8 @@ export type WebpToolOptions = {
   cacheDir?: string
   serve?: boolean
   exclude?: readonly string[]
+  /** 响应式图片的候选宽度（与运行时 helper 共用同一份常量）；空数组表示只出 base。 */
+  variantWidths?: readonly number[]
 }
 
 /** 插件在 apply 时注入的目录：loader / 中间件 / 资源发布共用同一份。 */
@@ -339,6 +397,8 @@ export class WebpTool {
   readonly cacheDirOption: string | undefined
   /** 不参与转码的源 URL：OG 图等必须保持原格式的文件。 */
   readonly exclude: readonly string[]
+  /** 响应式图片的候选宽度：base 之外的 `name-<width>.webp`。 */
+  readonly variantWidths: readonly number[]
 
   private bindings: WebpBindings | undefined
   /** 扫描结果：每次 rescan 都重扫，转码与改写集都从这里取。 */
@@ -347,8 +407,10 @@ export class WebpTool {
   private converted: Converted[] = []
   /** 本轮转码总耗时（含缓存读写），报告用。 */
   private conversionMs = 0
-  /** 改写集合：build = 本趟成功转码的条目；serve = 全部条目。 */
+  /** 改写集合：build = 本趟成功转码的条目；serve = 全部条目（冲突组除外）。 */
   rewriteEntries: ImageEntry[] = []
+  /** 变体 URL → (条目, 宽度)：dev 中间件按需生成变体时用。 */
+  private variantIndex = new Map<string, { entry: ImageEntry; width: number }>()
   private lastScanAt = 0
 
   constructor(options: WebpToolOptions = {}) {
@@ -359,6 +421,7 @@ export class WebpTool {
     this.serve = options.serve ?? false
     this.cacheDirOption = options.cacheDir
     this.exclude = options.exclude ?? []
+    this.variantWidths = options.variantWidths ?? []
   }
 
   /** 由 webpack 插件注入目录；重复调用幂等。 */
@@ -374,21 +437,32 @@ export class WebpTool {
 
   /** 重扫 `public/`；dev 下改写集必须与扫描实时同步，否则新增图片永远不被改写、删掉的还能被改写。 */
   rescan(): void {
-    const scan = collectImageEntries(this.env.publicDir, this.exclude)
+    const scan = collectImageEntries(this.env.publicDir, this.exclude, this.variantWidths)
     this.entries = scan.entries
     this.lastScanAt = Date.now()
     for (const item of scan.skipped) {
       const reason =
         item.reason === 'target-exists'
           ? 'public 里已有同名 .webp'
-          : '目标已被同名不同扩展名的源图占用'
+          : item.reason === 'duplicate-target'
+            ? '目标已被同名不同扩展名的源图占用'
+            : `变体目标 ${item.conflictRel ?? ''} 已被占用`
       console.warn(`[fusim:webp] 跳过 ${item.sourceRel}：${reason}，保留原图。`)
     }
-    // dev 改写集 = 全部条目（实际字节由中间件按需补上）
+
+    // 变体索引：所有宽度的名字都登记（实际是否生成由源宽决定），dev 中间件据此找源图
+    this.variantIndex.clear()
+    for (const entry of this.entries) {
+      for (const width of this.variantWidths) {
+        this.variantIndex.set(`/${variantRelFor(entry.targetRel, width)}`, { entry, width })
+      }
+    }
+
+    // dev 改写集 = 全部条目（实际字节由中间件按需补上）；冲突组已被 entries 排除
     if (this.serve) this.rewriteEntries = this.entries
   }
 
-  /** 每次 webpack 编译前调用：扫描 +（build）转码。 */
+  /** 每次 webpack 编译前调用：扫描 +（build）读尺寸、转 base 与变体。 */
   async prepare(): Promise<void> {
     this.rescan()
     // 每轮构建开始先清空上一轮状态：watch 下同一实例会反复触发，不能累加旧结果
@@ -398,27 +472,84 @@ export class WebpTool {
     if (this.serve) return
 
     const startedAt = Date.now()
-    for (let index = 0; index < this.entries.length; index += BATCH_SIZE) {
+
+    // 1) 每张源图只读一次元数据，过滤出小于源宽的候选（小图不放大、不产变体）
+    const plans: Array<{ entry: ImageEntry; widths: number[] }> = []
+    for (const entry of this.entries) {
+      try {
+        const width = await sourceWidth(entry.sourceAbs)
+        plans.push({ entry, widths: this.variantWidths.filter((candidate) => candidate < width) })
+      } catch (error) {
+        // 读不到尺寸就没有可信的候选集：不参与改写，原图保留
+        console.warn(`[fusim:webp] 跳过 ${entry.sourceRel}：${messageOf(error)}`)
+      }
+    }
+
+    // 2) 编码任务（base + 每个变体）展平后统一限流：多帧 GIF 的多个宽度同时在编会吃满内存
+    const jobs: Array<{ entry: ImageEntry; width: number | undefined }> = []
+    for (const plan of plans) {
+      jobs.push({ entry: plan.entry, width: undefined })
+      for (const width of plan.widths) jobs.push({ entry: plan.entry, width })
+    }
+
+    const encoded = new Map<ImageEntry, Array<{ width?: number; file: EncodedFile }>>()
+    for (const plan of plans) encoded.set(plan.entry, [])
+    const failures = new Map<ImageEntry, string>()
+
+    for (let index = 0; index < jobs.length; index += ENCODE_CONCURRENCY) {
       await Promise.all(
-        this.entries.slice(index, index + BATCH_SIZE).map(async (entry) => {
+        jobs.slice(index, index + ENCODE_CONCURRENCY).map(async ({ entry, width }) => {
           try {
             const stats = fs.statSync(entry.sourceAbs)
-            const { data } = await ensureWebp(entry, this.env.cacheDir, this.encodeOptions)
-            this.converted.push({
-              entry,
-              cachePath: cachePathFor(this.env.cacheDir, entry, stats, this.encodeOptions),
-              sourceBytes: stats.size,
-              outputBytes: data.length,
+            const options =
+              width === undefined ? this.encodeOptions : { ...this.encodeOptions, width }
+            const { data } = await ensureWebp(entry, this.env.cacheDir, options)
+            encoded.get(entry)?.push({
+              width,
+              file: {
+                cachePath: cachePathFor(this.env.cacheDir, entry, stats, options),
+                outputBytes: data.length,
+              },
             })
           } catch (error) {
-            // 失败的源图不进改写集：产物里保留原图，引用也保持原样
-            console.warn(error instanceof Error ? error.message : String(error))
+            // 记住首个失败：整组作废，产物里保留原图，引用也保持原样
+            const detail = messageOf(error)
+            failures.set(entry, width === undefined ? detail : `${width}w ${detail}`)
           }
         }),
       )
     }
+
+    for (const plan of plans) {
+      const files = encoded.get(plan.entry) ?? []
+      const failure = failures.get(plan.entry)
+      if (failure || files.length !== plan.widths.length + 1) {
+        console.warn(
+          `[fusim:webp] 放弃 ${plan.entry.sourceRel} 的响应式图片：${failure ?? '编码任务未全部完成'}（保留原图）`,
+        )
+        continue
+      }
+
+      const base = files.find((item) => item.width === undefined)?.file
+      if (!base) continue
+
+      this.converted.push({
+        entry: plan.entry,
+        base,
+        variants: files
+          .filter((item): item is { width: number; file: EncodedFile } => item.width !== undefined)
+          .map((item) => ({
+            width: item.width,
+            rel: variantRelFor(plan.entry.targetRel, item.width),
+            file: item.file,
+          }))
+          .sort((a, b) => a.width - b.width),
+        sourceBytes: fs.statSync(plan.entry.sourceAbs).size,
+      })
+    }
+
     this.conversionMs = Date.now() - startedAt
-    // 改写集只从本轮成功转码（含缓存命中）的条目里取
+    // 改写集只从整组成立的条目里取：半套图片不参与改写
     this.rewriteEntries = this.converted.map((item) => item.entry)
   }
 
@@ -427,31 +558,55 @@ export class WebpTool {
     return rewriteReferences(code, this.rewriteEntries) ?? code
   }
 
-  /** build：要写进产物的文件。转码成功的图片换成 `.webp`，其余 public 文件原样拷贝。 */
+  /** build：要写进产物的文件。整组成立的图片发 base + 变体，其余 public 文件原样拷贝。 */
   assets(): Array<{ name: string; data: Buffer }> {
     const bySource = new Map(this.converted.map((item) => [item.entry.sourceRel, item]))
+    const emitted = new Set<string>()
+    const output: Array<{ name: string; data: Buffer }> = []
 
-    return scanFiles(this.env.publicDir).map((file) => {
+    const push = (name: string, data: Buffer) => {
+      const key = occupancyKey(name)
+      // 扫描阶段的占用表已经排除了冲突；这里再兜一层，宁可构建失败也不发出重名资源
+      if (emitted.has(key)) throw new Error(`[fusim:webp] 产物文件名冲突：${name}`)
+      emitted.add(key)
+      output.push({ name, data })
+    }
+
+    for (const file of scanFiles(this.env.publicDir)) {
       const converted = bySource.get(file.rel)
       // 缓存文件读不到就让构建失败：引用已经改成 .webp，产物里缺文件比报错更糟
-      return converted
-        ? { name: converted.entry.targetRel, data: fs.readFileSync(converted.cachePath) }
-        : { name: file.rel, data: fs.readFileSync(file.abs) }
-    })
+      if (!converted) {
+        push(file.rel, fs.readFileSync(file.abs))
+        continue
+      }
+
+      // 源图整组换成 base + 变体，原图不再发布
+      push(converted.entry.targetRel, fs.readFileSync(converted.base.cachePath))
+      for (const variant of converted.variants) {
+        push(variant.rel, fs.readFileSync(variant.file.cachePath))
+      }
+    }
+
+    return output
   }
 
   /** 打印转码报告：只统计真正写进产物的条目。 */
   report(): void {
     if (this.converted.length === 0) return
 
+    const outputBytesOf = (item: Converted) =>
+      item.base.outputBytes +
+      item.variants.reduce((sum, variant) => sum + variant.file.outputBytes, 0)
     const totalSource = this.converted.reduce((sum, item) => sum + item.sourceBytes, 0)
-    const totalOutput = this.converted.reduce((sum, item) => sum + item.outputBytes, 0)
+    const totalOutput = this.converted.reduce((sum, item) => sum + outputBytesOf(item), 0)
+
     console.log(
       `[fusim:webp] ${this.converted.length} 张 · ${formatBytes(totalSource)} → ${formatBytes(totalOutput)} (${formatPercent(totalSource, totalOutput)}) · ${(this.conversionMs / 1000).toFixed(1)}s`,
     )
     for (const item of this.converted) {
+      const variants = item.variants.length > 0 ? `（+${item.variants.length} 个变体）` : ''
       console.log(
-        `[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(item.outputBytes)}`,
+        `[fusim:webp]   ${item.entry.sourceRel}  ${formatBytes(item.sourceBytes)} → ${formatBytes(outputBytesOf(item))}${variants}`,
       )
     }
   }
@@ -477,21 +632,30 @@ export class WebpTool {
       return next()
     }
 
-    let entry = this.entries.find((item) => item.targetUrl === pathname)
+    // base URL 与 `name-<width>.webp` 变体 URL 都解析到同一张源图
+    const resolve = (url: string): { entry: ImageEntry; width?: number } | undefined => {
+      const base = this.entries.find((item) => item.targetUrl === url)
+      if (base) return { entry: base, width: undefined }
+      return this.variantIndex.get(url)
+    }
+
+    let hit = resolve(pathname)
     // dev 里新增的源图不会触发重扫：命中 .webp 就补扫一次，让新文件立刻可用
     if (
-      !entry &&
+      !hit &&
       pathname.endsWith(WEBP_EXTENSION) &&
       Date.now() - this.lastScanAt > RESCAN_INTERVAL_MS
     ) {
       this.rescan()
-      entry = this.entries.find((item) => item.targetUrl === pathname)
+      hit = resolve(pathname)
     }
     // 未命中改写目标，或 public 里已有同名 .webp（用户自己放的，插件不接管），按原样继续走静态服务
-    if (!entry || fs.existsSync(entry.targetAbs)) return next()
+    if (!hit || fs.existsSync(hit.entry.targetAbs)) return next()
 
     try {
-      const { data } = await ensureWebp(entry, this.env.cacheDir, this.encodeOptions)
+      const options =
+        hit.width === undefined ? this.encodeOptions : { ...this.encodeOptions, width: hit.width }
+      const { data } = await ensureWebp(hit.entry, this.env.cacheDir, options)
       res.setHeader('Content-Type', 'image/webp')
       res.setHeader('Content-Length', data.length)
       res.setHeader('Cache-Control', 'no-cache')

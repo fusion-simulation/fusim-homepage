@@ -7,8 +7,10 @@ import {
   buildJsonLd,
   buildRobots,
   buildSitemap,
+  checkPageImages,
   composeShell,
   escapeHtml,
+  extractImageCandidates,
   htmlFileFor,
   type PageSeo,
   type ShellPage,
@@ -232,4 +234,71 @@ test('htmlFileFor 把路由映射到 index.html 路径', () => {
   assert.equal(htmlFileFor('/'), 'index.html')
   assert.equal(htmlFileFor('/about/'), 'about/index.html')
   assert.equal(htmlFileFor('/assets/pub/2026/1/data/'), 'assets/pub/2026/1/data/index.html')
+})
+
+/* ---------- 响应式图片门禁：srcSet 候选与属性契约 ---------- */
+
+test('extractImageCandidates：双/单引号、多候选 srcSet、query/hash、编码路径', () => {
+  const html = `
+    <img src="/a.webp" srcSet="/a-480.webp 480w, /a-800.webp 800w" sizes="auto, 100vw">
+    <img src='/b.webp?v=1#top'>
+    <img src="/assets/image/space%20photo.webp">
+  `
+  assert.deepEqual(extractImageCandidates(html), [
+    '/a.webp',
+    '/a-480.webp',
+    '/a-800.webp',
+    '/b.webp',
+    '/assets/image/space photo.webp',
+  ])
+})
+
+test('extractImageCandidates：外链、协议相对与 data URL 不是站内产物', () => {
+  const html = `
+    <img src="https://cdn.example/a.webp">
+    <img src="//cdn.example/b.webp">
+    <img src="data:image/png;base64,AAAA">
+    <img srcset="https://cdn.example/c.webp 480w, /d.webp 800w">
+  `
+  assert.deepEqual(extractImageCandidates(html), ['/d.webp'])
+})
+
+test('checkPageImages：w 描述符的 srcSet 必须有 sizes', () => {
+  const issues = checkPageImages(
+    '<img src="/a.webp" srcset="/a-480.webp 480w" width="100" height="50" alt="图">',
+    () => true,
+  )
+  assert.equal(issues.length, 1)
+  assert.match(issues[0], /sizes/)
+})
+
+test('checkPageImages：sizes 以 auto 开头必须搭配 loading="lazy"', () => {
+  const eager = checkPageImages(
+    '<img src="/a.webp" srcset="/a-480.webp 480w" sizes="auto, 100vw" width="100" height="50" alt="图">',
+    () => true,
+  )
+  assert.equal(eager.length, 1)
+  assert.match(eager[0], /loading="lazy"/)
+
+  const lazy = checkPageImages(
+    '<img src="/a.webp" srcset="/a-480.webp 480w" sizes="auto, 100vw" loading="lazy" width="100" height="50" alt="图">',
+    () => true,
+  )
+  assert.deepEqual(lazy, [])
+})
+
+test('checkPageImages：缺数值 width/height 与 alt 时报错', () => {
+  const issues = checkPageImages('<img src="/a.webp" width="60%" height="auto" alt="">', () => true)
+  assert.equal(issues.length, 3)
+  assert.ok(issues.some((issue) => /width/.test(issue)))
+  assert.ok(issues.some((issue) => /height/.test(issue)))
+  assert.ok(issues.some((issue) => /alt/.test(issue)))
+})
+
+test('checkPageImages：站内候选缺失时报错，外链与 data URL 不查产物', () => {
+  const html = `
+    <img src="/missing.webp" srcset="/ok.webp 480w, https://cdn.example/x.webp 800w, data:image/png;base64,AA 900w" sizes="100vw" loading="lazy" width="1" height="1" alt="图">
+  `
+  const issues = checkPageImages(html, (candidate) => candidate === '/ok.webp')
+  assert.deepEqual(issues, ['图片候选不存在：/missing.webp'])
 })

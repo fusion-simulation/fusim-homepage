@@ -7,6 +7,8 @@ wide: true
 product_section: service
 ---
 
+import { ResponsiveImage } from '../../components/ResponsiveImage'
+
 ##### 1. 高能量粒子与波粒相互作用模拟
 
 在磁约束聚变装置（如托卡马克）中，高能量粒子（如 α
@@ -15,16 +17,24 @@ product_section: service
 香蕉轨道 (Banana Orbits) 追踪：
 基于漂移动力学模型，精确还原托卡马克中束缚粒子的特殊运动轨迹。这对于理解新经典输运及粒子损失机制至关重要。
 
-<center>
-  <img src="/assets/image/banana.gif" width="60%" alt="图片名称" align="center" loading="lazy" />
-</center>
+<ResponsiveImage
+  src="/assets/image/banana.gif"
+  alt="香蕉轨道追踪：束缚粒子在托卡马克中的香蕉形轨道"
+  width={1000}
+  height={800}
+  displayWidth={1000}
+/>
 
 鱼骨模 (Fishbone Mode) 演化：
 模拟由高能粒子驱动的磁流体不稳定性。我们的方案能够捕捉非线性阶段的模结构演化，为实验中的振荡现象提供理论解释。
 
-<center>
-  <img src="/assets/image/fisbone.gif" width="60%" alt="图片名称" align="center" loading="lazy" />
-</center>
+<ResponsiveImage
+  src="/assets/image/fisbone.gif"
+  alt="鱼骨模演化：高能粒子驱动的磁流体不稳定性模结构"
+  width={771}
+  height={651}
+  displayWidth={771}
+/>
 
 ##### 2. 垂直位移事件 (VDE) 与装置安全
 
@@ -34,9 +44,13 @@ VDE 过程：
 使用三维非线性磁流体程序，模拟等离子体向上或向下的漂移运动，计算晕电流 (Halo
 Current) 分布及其对真空室壁的电磁力影响，助力装置的结构防护设计。
 
-<center>
-  <img src="/assets/image/psi_pres_con.gif" width="60%" alt="图片名称" align="center" />
-</center>
+<ResponsiveImage
+  src="/assets/image/psi_pres_con.gif"
+  alt="垂直位移事件：等离子体漂移与晕电流分布"
+  width={640}
+  height={480}
+  displayWidth={640}
+/>
 
 ##### 3. 破裂缓解：大剂量气体注入 (MGI)
 
@@ -45,6 +59,10 @@ Current) 分布及其对真空室壁的电磁力影响，助力装置的结构�
 MGI 模拟：
 模拟杂质气体注入等离子体后的冷却波传播、电流猝灭及能量沉积过程。我们的服务旨在通过数值实验，寻找最优的气体注入策略，以最大限度地降低破裂造成的损害。
 
-<center>
-  <img src="/assets/image/ppcfad02bcsupp2.gif" width="60%" alt="图片名称" align="center" />
-</center>
+<ResponsiveImage
+  src="/assets/image/ppcfad02bcsupp2.gif"
+  alt="破裂缓解：大剂量气体注入后的冷却波传播与电流猝灭"
+  width={2100}
+  height={1000}
+  displayWidth={1200}
+/>
