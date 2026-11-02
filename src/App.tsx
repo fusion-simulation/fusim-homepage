@@ -7,6 +7,7 @@ import { useDocumentMeta } from './lib/useDocumentMeta'
 import { useScrollToTop } from './lib/useScrollToTop'
 import { AboutPage } from './pages/AboutPage'
 import { AttachmentDirPage } from './pages/AttachmentDirPage'
+import { ContactPage } from './pages/ContactPage'
 import { HomePage } from './pages/HomePage'
 import { JournalPage } from './pages/JournalPage'
 import { MdxPage } from './pages/MdxPage'
@@ -42,6 +43,7 @@ export function App() {
       <Switch>
         <Route path="/" component={HomePage} />
         <Route path="/about" component={AboutPage} />
+        <Route path="/contact" component={ContactPage} />
         <Route path="/journal" component={JournalPage} />
         <Route path="/press" component={PressPage} />
         <Route path="/products" component={ProductsPage} />

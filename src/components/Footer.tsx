@@ -20,7 +20,7 @@ const SiteLinks = [
 const ProductLinks = [
   { href: 'https://cbaldur.fusim.cn', label: 'CBaldur 产品站' },
   { href: 'https://docs.fusim.cn/', label: '产品文档' },
-  { href: '#contact', label: '预约合作' },
+  { href: '/contact/', label: '预约合作' },
 ]
 
 export function Footer() {

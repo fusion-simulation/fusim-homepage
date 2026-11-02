@@ -449,7 +449,7 @@ export function HomePage() {
       </Band>
 
       {/* ---------- CTA ---------- */}
-      <Band id="contact">
+      <Band>
         <Shell>
           <CtaPanel $delay={1}>
             <h2>

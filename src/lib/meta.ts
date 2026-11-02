@@ -17,6 +17,10 @@ const staticMeta: Record<string, PageMeta> = {
     title: '企业介绍 | 聚核智算 FUSIM',
     description: '聚核智算企业介绍、核心能力与服务架构。',
   },
+  '/contact/': {
+    title: '预约合作 | 聚核智算 FUSIM',
+    description: '聚核智算业务合作、方案咨询与媒体联络方式。',
+  },
   '/journal/': {
     title: '企业新闻 | 聚核智算 FUSIM',
     description: '聚核智算企业日志列表，记录产品演进、技术洞察与行业观点。',

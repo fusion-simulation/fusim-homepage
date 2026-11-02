@@ -138,7 +138,7 @@ export function Header() {
             </NavLink>
           ))}
           <NavAnchor href="https://docs.fusim.cn/">产品文档</NavAnchor>
-          <NavCta href="#contact" onClick={() => setOpen(false)}>
+          <NavCta href="/contact/" onClick={() => setOpen(false)}>
             预约合作
           </NavCta>
           <ThemeToggle placement="nav" />
