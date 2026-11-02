@@ -27,7 +27,7 @@ test('index.html 的 head 里内联首屏全局样式（变量、暗色覆盖、
   assert.match(style, /:root\s*\{[\s\S]*--bg:/, '应定义 :root 的 --bg')
   assert.match(style, /--header-bg:/, '应定义半透明 header 背景变量')
   assert.match(style, /--font-sans:/, '应定义字体变量')
-  assert.match(style, /html\[data-theme="dark"\]/, '应有暗色变量覆盖')
+  assert.match(style, /html\[data-theme="light"\]/, '应有亮色变量覆盖（暗色是 :root 默认）')
   assert.match(style, /box-sizing:\s*border-box/, '应有 * 重置')
   assert.match(style, /body\s*\{[\s\S]*radial-gradient/, 'body 背景（含渐变）应首屏生效')
 })

@@ -39,6 +39,9 @@ const staticMeta: Record<string, PageMeta> = {
   },
 }
 
+/** 静态页的站点路径（与 staticMeta 的键同源），预渲染路由全集的一部分。 */
+export const staticRoutePaths: readonly string[] = Object.keys(staticMeta)
+
 /** 统一成以 `/` 开头、以 `/` 结尾的站点路径。 */
 export function normalizePath(pathname: string): string {
   const [raw] = pathname.split(/[?#]/)

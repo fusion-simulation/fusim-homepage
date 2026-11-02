@@ -534,3 +534,66 @@ test('报告百分比：聚合变大时输出 +N%，不钳为 0', () => {
   assert.equal(formatPercent(1000, 100), '-90%')
   assert.equal(formatPercent(1000, 1070), '+7%')
 })
+
+test('exclude 里的源图保持原样：不转码、不记跳过', () => {
+  const dir = makePublicDir(['og-image.png', 'logos/fusim-logo-512.png', 'assets/img/a.png'])
+  const { entries, skipped } = collectImageEntries(dir, [
+    '/og-image.png',
+    '/logos/fusim-logo-512.png',
+  ])
+  assert.deepEqual(
+    entries.map((entry) => entry.sourceRel),
+    ['assets/img/a.png'],
+  )
+  assert.deepEqual(skipped, [])
+})
+
+test('真实配置的 passthrough 名单点名 public 里真实存在的 OG 图与 logo', async () => {
+  const { PASSTHROUGH_IMAGE_URLS } = await import('../webpack.config.mjs')
+  const publicDir = path.join(process.cwd(), 'public')
+  const sourceUrls = (exclude: readonly string[] = []) =>
+    collectImageEntries(publicDir, exclude).entries.map((entry) => entry.sourceUrl)
+
+  const all = sourceUrls()
+  // 文件被改名 / 删除时先在这里失败：名单对了也拦不住缺失的资产
+  assert.equal(all.includes('/og-image.png'), true, 'public 里应有 og-image.png')
+  assert.equal(
+    all.includes('/logos/fusim-logo-512.png'),
+    true,
+    'public 里应有 logos/fusim-logo-512.png',
+  )
+
+  const filtered = sourceUrls(PASSTHROUGH_IMAGE_URLS)
+  // 配置里漏写或拼错任一项，og:image / JSON-LD logo 就会被转成 .webp 而 404
+  assert.equal(
+    filtered.includes('/og-image.png'),
+    false,
+    'og-image.png 必须留在 passthrough 名单里',
+  )
+  assert.equal(
+    filtered.includes('/logos/fusim-logo-512.png'),
+    false,
+    'logos/fusim-logo-512.png 必须留在 passthrough 名单里',
+  )
+  // 名单过宽（比如写成 '/'）会把所有源图排除掉，转码静默失效
+  assert.equal(filtered.length > 0, true, 'passthrough 名单不应排除掉所有源图')
+})
+
+test('WebpTool 的 exclude 项按原图发进产物，不产生 .webp', async () => {
+  const dir = makePublicDir(['og-image.png', 'assets/img/a.png'])
+  fs.writeFileSync(path.join(dir, 'og-image.png'), 'PNG')
+  const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fusim-webp-cache-'))
+  dirs.push(cacheDir)
+
+  const tool = new WebpTool({ serve: true, exclude: ['/og-image.png'] })
+  tool.bind({ publicDir: dir, cacheDir })
+  await tool.prepare()
+
+  assert.deepEqual(
+    tool.entries.map((entry) => entry.sourceRel),
+    ['assets/img/a.png'],
+  )
+  const assets = tool.assets()
+  assert.deepEqual(assets.map((asset) => asset.name).sort(), ['assets/img/a.png', 'og-image.png'])
+  assert.equal(assets.find((asset) => asset.name === 'og-image.png')?.data.toString(), 'PNG')
+})

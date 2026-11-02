@@ -31,10 +31,49 @@ async function findFreePort(start) {
   throw new Error(`[webpack] ${start}–65535 之间没有可用端口`)
 }
 
+/** OG 分享图与 JSON-LD logo 必须是 PNG（社交爬虫与结构化数据），跳过 WebP 转码、原样发进产物。 */
+export const PASSTHROUGH_IMAGE_URLS = ['/og-image.png', '/logos/fusim-logo-512.png']
+
+/** 主编译与预渲染 server bundle 共用的 loader 链：新增 loader 时必须两边同时生效，否则渲染结果分叉。 */
+export function createModuleRules({ isDev }) {
+  return [
+    {
+      test: /virtual-publications\.js$/,
+      use: [{ loader: plugin('publications.ts') }],
+    },
+    {
+      test: /\.mdx$/,
+      // 从右往左：先编译 MDX，再改写其中的图片引用
+      use: [{ loader: plugin('webp-loader.ts') }, { loader: plugin('mdx.ts') }],
+    },
+    {
+      test: /\.[cm]?[jt]sx?$/,
+      exclude: /node_modules/,
+      use: [
+        { loader: plugin('webp-loader.ts') },
+        {
+          loader: 'babel-loader',
+          options: {
+            babelrc: false,
+            configFile: false,
+            cacheDirectory: true,
+            presets: [
+              ['@babel/preset-typescript', { onlyRemoveTypeImports: true }],
+              ['@babel/preset-react', { runtime: 'automatic', development: isDev }],
+            ],
+            // Fast Refresh 的插桩在 dev 才加：生产产物里不该有 $RefreshReg$
+            plugins: isDev ? ['react-refresh/babel'] : [],
+          },
+        },
+      ],
+    },
+  ]
+}
+
 export default async (_env, argv) => {
   const mode = argv.mode ?? 'development'
   const isDev = mode !== 'production'
-  const webp = new WebpPlugin({ serve: isDev })
+  const webp = new WebpPlugin({ serve: isDev, exclude: PASSTHROUGH_IMAGE_URLS })
   const port = isDev ? await findFreePort(DEV_PORT) : DEV_PORT
 
   if (isDev && port !== DEV_PORT) {
@@ -58,43 +97,8 @@ export default async (_env, argv) => {
       extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
     },
     module: {
-      rules: [
-        {
-          // oneOf：一个资源只走第一条命中的规则，避免 babel-loader 撞上虚拟模块
-          oneOf: [
-            {
-              test: /virtual-publications\.js$/,
-              use: [{ loader: plugin('publications.ts') }],
-            },
-            {
-              test: /\.mdx$/,
-              // 从右往左：先编译 MDX，再改写其中的图片引用
-              use: [{ loader: plugin('webp-loader.ts') }, { loader: plugin('mdx.ts') }],
-            },
-            {
-              test: /\.[cm]?[jt]sx?$/,
-              exclude: /node_modules/,
-              use: [
-                { loader: plugin('webp-loader.ts') },
-                {
-                  loader: 'babel-loader',
-                  options: {
-                    babelrc: false,
-                    configFile: false,
-                    cacheDirectory: true,
-                    presets: [
-                      ['@babel/preset-typescript', { onlyRemoveTypeImports: true }],
-                      ['@babel/preset-react', { runtime: 'automatic', development: isDev }],
-                    ],
-                    // Fast Refresh 的插桩在 dev 才加：生产产物里不该有 $RefreshReg$
-                    plugins: isDev ? ['react-refresh/babel'] : [],
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
+      // oneOf：一个资源只走第一条命中的规则，避免 babel-loader 撞上虚拟模块
+      rules: [{ oneOf: createModuleRules({ isDev }) }],
     },
     plugins: [
       // 虚拟模块：`virtual:` 会被 webpack 当成 URI scheme（UnhandledSchemeError），
