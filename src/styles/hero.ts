@@ -1,12 +1,17 @@
 import { styled } from 'styled-components'
 import { type RevealProps, reveal, scrollLine } from './animation'
+import { container, containers, fromContainer } from './responsive'
 
 /** 首页全屏 Hero：背景等离子体场景 + 居中大标题 + 底部数据带。 */
 
 export const HeroStage = styled.section`
+  ${container(containers.hero)}
   position: relative;
-  /* 扣除 sticky header 的高度，数据带恰好收在首屏底缘 */
-  min-height: calc(100svh - var(--header-h));
+  /* 首屏铺满一屏：页头已改 fixed 不再占位，不必再扣 --header-h；
+     数据带已移到 section 之外，落在折叠线以下。
+     svh 兜住移动端地址栏，避免首屏被地址栏截掉一块 */
+  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -20,18 +25,19 @@ export const HeroBackdrop = styled.div`
   place-items: center;
   pointer-events: none;
 
+  /* 窄首屏：场景放大铺满，压低不透明度免得压住标题 */
   & > svg {
-    width: min(118vh, 1080px);
+    width: 150%;
     height: auto;
-    opacity: 0.8;
+    opacity: 0.4;
     -webkit-mask-image: radial-gradient(circle at 50% 44%, black 30%, transparent 72%);
     mask-image: radial-gradient(circle at 50% 44%, black 30%, transparent 72%);
   }
 
-  @media (max-width: 960px) {
+  ${fromContainer(containers.hero, 'split')} {
     & > svg {
-      width: 150vw;
-      opacity: 0.4;
+      width: min(118vh, 1080px);
+      opacity: 0.8;
     }
   }
 `
@@ -46,7 +52,12 @@ export const HeroContent = styled.div`
   justify-content: center;
   text-align: center;
   gap: 0;
-  padding: 132px 7vw 150px;
+  /* 窄首屏压掉上下留白：标题 + 按钮仍要收在一屏之内 */
+  padding: 96px 6vw;
+
+  ${fromContainer(containers.hero, 'actions')} {
+    padding: 132px 7vw 150px;
+  }
 `
 
 export const HeroEyebrow = styled.p<RevealProps>`
@@ -75,7 +86,7 @@ export const HeroEyebrow = styled.p<RevealProps>`
 export const HeroTitle = styled.h1<RevealProps>`
   ${reveal}
   /* 2.35rem 保证 390px 宽下「打造聚变堆系统的」8 字不断行 */
-  font-size: clamp(2.35rem, 6.4vw, 5.4rem);
+  font-size: clamp(2.35rem, 6.4cqi, 5.4rem);
   line-height: 1.14;
   margin: 30px 0 26px;
   font-weight: 700;
@@ -87,14 +98,14 @@ export const HeroTitle = styled.h1<RevealProps>`
     display: block;
     font-style: normal;
     color: var(--accent-ink);
-    text-shadow: 0 0 32px rgba(var(--accent-rgb), 0.35);
+    text-shadow: 0 0 28px rgba(var(--accent-rgb), 0.16);
   }
 `
 
 export const HeroLead = styled.p<RevealProps>`
   ${reveal}
   color: var(--text-muted);
-  font-size: clamp(1rem, 1.4vw, 1.15rem);
+  font-size: clamp(1rem, 1.4cqi, 1.15rem);
   line-height: 1.9;
   max-width: 620px;
 `
@@ -103,20 +114,24 @@ export const HeroActions = styled.div<RevealProps>`
   ${reveal}
   margin-top: 40px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
   gap: 16px;
+  width: min(360px, 100%);
 
-  @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: stretch;
-    width: min(360px, 100%);
+  ${fromContainer(containers.hero, 'actions')} {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    width: auto;
   }
 `
 
 /** 底部数据带：全宽、发丝线上边框、玻璃底。 */
 export const HeroStatBar = styled.div<RevealProps>`
   ${reveal}
+  ${container(containers.heroStats)}
   position: relative;
   z-index: 1;
   border-top: 1px solid var(--line);
@@ -129,12 +144,10 @@ export const HeroStatBar = styled.div<RevealProps>`
     margin: 0 auto;
     padding: 0 7vw;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-  }
+    grid-template-columns: repeat(2, 1fr);
 
-  @media (max-width: 760px) {
-    & > div {
-      grid-template-columns: repeat(2, 1fr);
+    ${fromContainer(containers.heroStats, 'stats')} {
+      grid-template-columns: repeat(4, 1fr);
     }
   }
 `
@@ -157,15 +170,20 @@ export const HeroStat = styled.div`
     background: var(--line);
   }
 
-  @media (max-width: 760px) {
+  /* 两列布局时第 3 项换行，去掉它的左分隔线 */
+  &:nth-child(3)::before {
+    display: none;
+  }
+
+  ${fromContainer(containers.heroStats, 'stats')} {
     &:nth-child(3)::before {
-      display: none;
+      display: block;
     }
   }
 `
 
 export const HeroStatValue = styled.strong`
-  font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+  font-size: clamp(1.4rem, 2.2cqi, 1.9rem);
   font-weight: 700;
   font-family: var(--font-sans);
   letter-spacing: 0.02em;
@@ -192,7 +210,7 @@ export const ScrollCue = styled.div<RevealProps>`
   position: absolute;
   z-index: 1;
   left: 50%;
-  bottom: 132px;
+  bottom: 48px;
   transform: translateX(-50%);
   display: grid;
   justify-items: center;
@@ -210,7 +228,10 @@ export const ScrollCue = styled.div<RevealProps>`
     animation: ${scrollLine} 2.4s ease-in-out infinite;
   }
 
-  @media (max-width: 960px) {
-    display: none;
+  /* 窄首屏放不下滚动提示 */
+  display: none;
+
+  ${fromContainer(containers.hero, 'split')} {
+    display: grid;
   }
 `

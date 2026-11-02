@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="136.5 5 338 338" width="64" height="64">
   <!-- 单色环形标志：浅色主题用品牌墨色，深色主题反白，跟随浏览器 prefers-color-scheme -->
   <style>
-    .mark { fill: #1a1029; }
+    .mark { fill: #101418; }
     @media (prefers-color-scheme: dark) {
-      .mark { fill: #f3edff; }
+      .mark { fill: #eef2f7; }
     }
   </style>
   <g class="mark" transform="translate(0.000000,596.000000) scale(0.100000,-0.100000)" stroke="none">

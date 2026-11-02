@@ -18,8 +18,15 @@
 全局样式（CSS 变量、暗色覆盖、重置、`body` 背景）内联在 `index.html` 的 `<head>` 里：它们必须首屏生效，
 交给运行时注入会先闪一帧白底。仓库里因此既没有 `.css` 文件，也没有运行时全局样式注入。
 颜色仍走 `var(--*)`，主题由 `index.html` 的内联脚本设置 `html[data-theme]` 驱动，不经过 React：
-暗色（深紫 + 等离子品红）是默认主题，亮色（薰衣草纸白）需显式切换；URL 加 `?theme=light|dark` 可指定主题。
-辉光色统一走 `rgba(var(--accent-rgb), α)` / `rgba(var(--hl-rgb), α)`，换色调只需改 `index.html` 里的令牌。
+亮色（冷白纸 `#f7f8fa` + 墨色 `#101418`）是默认主题，暗色（炭黑 `#0a0c10` + 白字 `#eef2f7`）
+需显式切换；URL 加 `?theme=light|dark` 可指定主题。
+
+配色是两层：中性灰阶负责结构，两条色相通道负责语义——
+`--accent` 是钢蓝（交互、链接、眉题、激活态、主按钮，配 `--on-accent` 前景，亮色蓝底白字、暗色反转），
+`--gold` 是琥珀（数据高点、featured 顶线、流程强结论）。色相只做点缀，不做大面积填充：
+骨架、留白、边框、网格、切角仍然无彩。
+阴影与描边统一走 `rgba(var(--accent-rgb), α)` / `rgba(var(--hl-rgb), α)`，
+换色阶只需改 `index.html` 里的令牌（`prepaint.test.ts` 会把新值钉住）。
 
 数学公式在**构建期**由 `webpack-plugins/mathjax.ts` 调用 MathJax v4 渲染成自包含 SVG（字形路径内嵌、
 无外部字体与样式表），因此**产物里没有任何 CSS 文件**。
@@ -175,6 +182,11 @@ public/assets/              # 图片、论文 PDF 等静态资源
   SVG 自带字形路径，用 `aria-label` 写入 TeX 源码作为可访问名称。相同公式按 `display + tex` 缓存。
 - **移动端导航**：原模板在展开菜单时，关闭按钮会被挤到第三行；这里用 `order` 让「品牌 + 操作按钮」
   始终位于第一行。
+- **首屏与页头**：`HeaderBar` 用 `position: fixed` 贴在视口顶端（不再占文档流高度，首屏才能正好一屏），
+  页面停在最上端（`scrollY ≤ 8px`）时整条收起、向下滚动后滑出；收起时用 `visibility: hidden`
+  一并移出 Tab 焦点序列。锚点跳转由 `html { scroll-padding-top: var(--header-h) }` 让出页头高度。
+  首页 Hero 用 `min-height: 100svh`（`100vh` 兜底）铺满一屏，数据带 `HeroStatBar` 放在 section
+  之外、落在折叠线以下，滚动一点才露出来。
 - **论文附件**：「更新」时间取 PDF 的文件修改时间，因此与构建环境中的文件时间有关。
 - **原 `<style>` 覆盖**：`products/service_*.md` 里用于把正文放宽到 2400px 的 `<style>` 块
   改为 frontmatter 的 `wide: true`，由 `ProseArticle` 的 `$wide` 变体实现（效果一致，且不会污染全局）。

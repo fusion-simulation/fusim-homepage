@@ -1,5 +1,6 @@
 import { styled } from 'styled-components'
 import { marquee, type RevealProps, reveal } from './animation'
+import { container, containers, fromContainer } from './responsive'
 
 /** 首页专属区块：合作带 / 三大技术 bento / 工作流对比 / 产品聚焦 / 成果带 / CTA。 */
 
@@ -68,11 +69,12 @@ export const PartnerItem = styled.li`
 
 export const TechGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* 窄容器自然落到 1–2 列；宽容器锁死三列，免得 auto-fit 铺成四列把卡片压窄 */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
   gap: 20px;
 
-  @media (max-width: 1080px) {
-    grid-template-columns: 1fr;
+  ${fromContainer(containers.shell, 'threeUp')} {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 `
 
@@ -111,9 +113,9 @@ export const TechCard = styled.article<RevealProps & { $featured?: boolean }>`
   }
 
   &:hover {
-    transform: translateY(-6px);
+    transform: translateY(-4px);
     border-color: var(--line-strong);
-    box-shadow: 0 24px 60px rgba(2, 8, 24, 0.45);
+    box-shadow: var(--shadow-card);
   }
 `
 
@@ -193,12 +195,12 @@ export const TechGlyph = styled.span`
 export const FlowGrid = styled.div<RevealProps>`
   ${reveal}
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 24px;
   align-items: start;
 
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
+  ${fromContainer(containers.shell, 'split')} {
+    grid-template-columns: 1fr 1fr;
   }
 `
 
@@ -266,7 +268,7 @@ export const FlowStep = styled.li<{ $new?: boolean }>`
     font-style: normal;
     font-family: var(--font-mono);
     font-size: 0.68rem;
-    color: ${({ $new }) => ($new ? '#170322' : 'var(--text-muted)')};
+    color: ${({ $new }) => ($new ? 'var(--on-accent)' : 'var(--text-muted)')};
     background: ${({ $new }) =>
       $new ? 'linear-gradient(120deg, var(--accent), var(--accent-deep))' : 'var(--metric-bg)'};
     border: 1px solid ${({ $new }) => ($new ? 'transparent' : 'var(--metric-border)')};
@@ -298,9 +300,9 @@ export const FlowBanner = styled.p<RevealProps>`
 export const ProductSpot = styled.article<RevealProps>`
   ${reveal}
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1fr;
   gap: 40px;
-  padding: 48px;
+  padding: 32px 26px;
   border-radius: var(--radius-xl);
   border: 1px solid var(--line-strong);
   background:
@@ -313,9 +315,9 @@ export const ProductSpot = styled.article<RevealProps>`
   position: relative;
   clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
 
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
-    padding: 32px 26px;
+  ${fromContainer(containers.shell, 'split')} {
+    grid-template-columns: 1.1fr 0.9fr;
+    padding: 48px;
   }
 `
 
@@ -325,7 +327,7 @@ export const ProductSpotText = styled.div`
   align-content: center;
 
   & h3 {
-    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-size: clamp(1.8rem, 3cqi, 2.5rem);
     font-weight: 700;
     letter-spacing: 0.02em;
   }
@@ -350,16 +352,19 @@ export const ProductFeatures = styled.ul`
     font-size: 0.96rem;
   }
 
+  /* 勾选方块：纯文字勾号，避免 data-URI 里钉死主题色 */
   & li::before {
-    content: "";
+    content: "✓";
     flex: none;
+    display: grid;
+    place-items: center;
     width: 18px;
     height: 18px;
-    border: 1px solid var(--accent);
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e05cff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
-      center / 10px no-repeat,
-      rgba(var(--accent-rgb), 0.08);
+    border: 1px solid var(--line-strong);
+    background: var(--surface-translucent);
+    color: var(--text);
+    font-size: 0.72rem;
+    line-height: 1;
   }
 `
 
@@ -372,12 +377,13 @@ export const ProductSpotActions = styled.div`
 
 /** 右侧 mini 控制台视窗。 */
 export const ProductConsole = styled.div`
+  ${container(containers.productConsole)}
   align-self: center;
   border-radius: var(--radius-lg);
   border: 1px solid var(--line-strong);
   background: var(--bg-deep);
   overflow: hidden;
-  box-shadow: 0 24px 60px rgba(2, 8, 24, 0.5);
+  box-shadow: var(--shadow-card);
 
   & header {
     display: flex;
@@ -416,8 +422,9 @@ export const ConsoleRow = styled.p<{ $w?: number }>`
 `
 
 export const ConsoleReadout = styled.div`
+  /* 容器窄时自动降成一列，不再挤三列小字 */
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
   gap: 10px;
 
   & div {
@@ -446,11 +453,11 @@ export const ConsoleReadout = styled.div`
 
 export const VerifyGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
   gap: 20px;
 
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
+  ${fromContainer(containers.shell, 'threeUp')} {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 `
 
@@ -491,7 +498,6 @@ export const VerifyValue = styled.span`
   font-weight: 700;
   font-family: var(--font-sans);
   color: var(--gold);
-  text-shadow: 0 0 24px rgba(var(--hl-rgb), 0.25);
 `
 
 /* ---------- CTA ---------- */
@@ -500,7 +506,7 @@ export const CtaPanel = styled.div<RevealProps>`
   ${reveal}
   position: relative;
   border-radius: var(--radius-xl);
-  padding: 72px 8vw;
+  padding: clamp(3rem, 8cqi, 4.5rem) 8cqi;
   text-align: center;
   background:
     radial-gradient(60% 130% at 50% 0%, rgba(var(--accent-rgb), 0.12), transparent 65%),
@@ -535,7 +541,7 @@ export const CtaPanel = styled.div<RevealProps>`
   }
 
   & h2 {
-    font-size: clamp(1.9rem, 3.4vw, 3rem);
+    font-size: clamp(1.9rem, 3.4cqi, 3rem);
     font-weight: 700;
     letter-spacing: 0.03em;
     line-height: 1.3;

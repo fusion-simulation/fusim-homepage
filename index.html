@@ -7,8 +7,24 @@
       name="description"
       content="聚核智算（FUSIM）是一家聚变等离子体软件SaaS服务商，致力于为科研机构和企业提供高效、精准的仿真解决方案，推动聚变能源技术的发展。"
     />
-    <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0b0714" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f7f8fa" />
+    <!-- 主题脚本必须排在任何外部样式表之前：被字体 CSS 卡住时 body 都还没解析出来 -->
+    <script>
+      // 亮色（白纸 + 墨色）为默认主题；URL ?theme= 可显式指定，用户切换后记住选择。
+      const fromUrl = new URLSearchParams(location.search).get('theme')
+      let stored = null
+      try {
+        stored = localStorage.getItem('theme')
+      } catch {
+        /* localStorage 不可用时忽略已存选择 */
+      }
+      const theme = [fromUrl, stored].find((value) => value === 'light' || value === 'dark') ?? 'light'
+      document.documentElement.dataset.theme = theme
+      // theme-color 跟随主题的中性底色，移动端地址栏不留白边
+      const themeColor = theme === 'dark' ? '#0a0c10' : '#f7f8fa'
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', themeColor)
+    </script>
     <!-- 图标：ico 兜底在前，svg 最后声明——现代浏览器优先用矢量，老环境回落 ico -->
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -22,37 +38,41 @@
     <style>
       /* 首屏全局样式：必须内联在 head 里，createGlobalStyle 要等 JS 执行才注入会闪白 */
 
-      /* ---------- 设计令牌：暗色（默认）——深紫 + 等离子品红 ---------- */
+      /* ---------- 设计令牌：亮色（默认）——冷白纸 + 墨色，钢蓝主色 ---------- */
       :root {
-        --bg: #0b0714;
-        --bg-soft: #130b22;
-        --bg-deep: #080410;
-        --bg-card: rgba(24, 14, 44, 0.66);
-        --surface-translucent: rgba(19, 11, 34, 0.55);
-        --accent: #e05cff;
-        --accent-deep: #8b5cf6;
-        --accent-ink: #e08fff;
-        --gold: #a78bfa;
-        --gold-deep: #8b5cf6;
-        --text: #f3edff;
-        --text-muted: #a99cc9;
-        --line: rgba(167, 139, 250, 0.16);
-        --line-strong: rgba(167, 139, 250, 0.34);
-        --grid-line: rgba(167, 139, 250, 0.05);
-        --glow-a: rgba(139, 92, 246, 0.16);
-        --glow-b: rgba(224, 92, 255, 0.1);
-        --code-bg: rgba(167, 139, 250, 0.12);
-        --metric-bg: rgba(224, 92, 255, 0.07);
-        --metric-border: rgba(224, 92, 255, 0.24);
-        --header-bg: rgba(11, 7, 20, 0.72);
-        --shadow: 0 24px 60px rgba(3, 1, 10, 0.55);
-        --shadow-card: 0 16px 44px rgba(3, 1, 10, 0.4);
-        --glow-accent: 0 12px 40px rgba(224, 92, 255, 0.22);
-        --prose-shadow: 0 24px 60px rgba(3, 1, 10, 0.45);
+        /* 原生控件 / 滚动条跟随主题，而不是永远是亮色 */
+        color-scheme: light;
+        --bg: #f7f8fa;
+        --bg-soft: #ffffff;
+        --bg-deep: #eef1f5;
+        --bg-card: rgba(255, 255, 255, 0.86);
+        --surface-translucent: rgba(255, 255, 255, 0.66);
+        --accent: #1d4ed8;
+        --accent-deep: #163bb0;
+        --accent-ink: #1b46c2;
+        --gold: #b45309;
+        --gold-deep: #92400e;
+        --text: #101418;
+        --text-muted: #5a6472;
+        --line: rgba(16, 20, 24, 0.14);
+        --line-strong: rgba(16, 20, 24, 0.3);
+        --grid-line: rgba(16, 20, 24, 0.055);
+        --glow-a: rgba(29, 78, 216, 0.06);
+        --glow-b: rgba(29, 78, 216, 0.04);
+        --code-bg: rgba(29, 78, 216, 0.06);
+        --metric-bg: rgba(29, 78, 216, 0.06);
+        --metric-border: rgba(29, 78, 216, 0.22);
+        --header-bg: rgba(247, 248, 250, 0.84);
+        --shadow: 0 32px 80px rgba(16, 20, 24, 0.12);
+        --shadow-card: 0 12px 32px rgba(16, 20, 24, 0.08);
+        --glow-accent: 0 12px 32px rgba(29, 78, 216, 0.16);
+        --prose-shadow: 0 18px 50px rgba(16, 20, 24, 0.08);
+        /* 主操作色上的前景：钢蓝底白字 */
+        --on-accent: #ffffff;
 
-        /* 主色 / 点缀色的 RGB 三元组：供 rgba(var(--accent-rgb), α) 辉光使用 */
-        --accent-rgb: 224, 92, 255;
-        --hl-rgb: 167, 139, 250;
+        /* 主色 / 点缀色的 RGB 三元组：供 rgba(var(--accent-rgb), α) 使用 */
+        --accent-rgb: 29, 78, 216;
+        --hl-rgb: 180, 83, 9;
 
         --radius-lg: 0px;
         --radius-md: 0px;
@@ -69,42 +89,49 @@
           "Courier New", monospace;
       }
 
-      /* ---------- 亮色：薰衣草纸 ---------- */
-      html[data-theme="light"] {
-        --bg: #f5f2fb;
-        --bg-soft: #ffffff;
-        --bg-deep: #ece6f8;
-        --bg-card: rgba(255, 255, 255, 0.85);
-        --surface-translucent: rgba(255, 255, 255, 0.65);
-        --accent: #9333ea;
-        --accent-deep: #7c3aed;
-        --accent-ink: #8619c9;
-        --gold: #6d28d9;
-        --gold-deep: #5b21b6;
-        --text: #1a1029;
-        --text-muted: #5f5478;
-        --line: rgba(26, 16, 41, 0.14);
-        --line-strong: rgba(26, 16, 41, 0.28);
-        --grid-line: rgba(147, 51, 234, 0.05);
-        --glow-a: rgba(147, 51, 234, 0.1);
-        --glow-b: rgba(224, 92, 255, 0.14);
-        --code-bg: rgba(147, 51, 234, 0.08);
-        --metric-bg: rgba(147, 51, 234, 0.06);
-        --metric-border: rgba(147, 51, 234, 0.22);
-        --header-bg: rgba(245, 242, 251, 0.78);
-        --shadow: 0 32px 80px rgba(26, 16, 41, 0.12);
-        --shadow-card: 0 12px 32px rgba(26, 16, 41, 0.08);
-        --glow-accent: 0 12px 32px rgba(147, 51, 234, 0.2);
-        --prose-shadow: 0 18px 50px rgba(26, 16, 41, 0.08);
+      /* ---------- 暗色：炭黑 + 白字，浅钢蓝主色 ---------- */
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #0a0c10;
+        --bg-soft: #12151b;
+        --bg-deep: #06070a;
+        --bg-card: rgba(18, 21, 27, 0.72);
+        --surface-translucent: rgba(18, 21, 27, 0.6);
+        --accent: #7aa2ff;
+        --accent-deep: #a7c2ff;
+        --accent-ink: #9fb8ff;
+        --gold: #ffb067;
+        --gold-deep: #ffc998;
+        --text: #eef2f7;
+        --text-muted: #9aa4b2;
+        --line: rgba(238, 242, 247, 0.16);
+        --line-strong: rgba(238, 242, 247, 0.34);
+        --grid-line: rgba(238, 242, 247, 0.05);
+        --glow-a: rgba(122, 162, 255, 0.1);
+        --glow-b: rgba(122, 162, 255, 0.05);
+        --code-bg: rgba(122, 162, 255, 0.1);
+        --metric-bg: rgba(122, 162, 255, 0.08);
+        --metric-border: rgba(122, 162, 255, 0.24);
+        --header-bg: rgba(10, 12, 16, 0.78);
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+        --shadow-card: 0 16px 44px rgba(0, 0, 0, 0.45);
+        --glow-accent: 0 12px 40px rgba(0, 0, 0, 0.5);
+        --prose-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+        --on-accent: #08090c;
 
-        --accent-rgb: 147, 51, 234;
-        --hl-rgb: 109, 40, 217;
+        --accent-rgb: 122, 162, 255;
+        --hl-rgb: 255, 176, 103;
       }
 
       * {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
+      }
+
+      /* 页头固定在视口顶端：页面内锚点（如 #contact）跳转时自动让出页头高度 */
+      html {
+        scroll-padding-top: var(--header-h);
       }
 
       body {
@@ -158,18 +185,6 @@
         }
       }
     </style>
-    <script>
-      try {
-        // 暗色为默认主题（与品牌视觉一致）；URL ?theme= 可显式指定，用户切换后记住选择。
-        const fromUrl = new URLSearchParams(location.search).get('theme')
-        document.documentElement.dataset.theme =
-          fromUrl === 'light' || fromUrl === 'dark'
-            ? fromUrl
-            : (localStorage.getItem('theme') ?? 'dark')
-      } catch {
-        /* localStorage 不可用时保持默认暗色主题 */
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>

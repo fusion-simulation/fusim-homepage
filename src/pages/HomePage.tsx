@@ -241,18 +241,19 @@ export function HomePage() {
         </HeroContent>
 
         <ScrollCue $delay={4}>SCROLL</ScrollCue>
-
-        <HeroStatBar $delay={2}>
-          <div>
-            {heroStats.map((stat) => (
-              <HeroStat key={stat.label}>
-                <HeroStatValue>{stat.value}</HeroStatValue>
-                <HeroStatLabel>{stat.label}</HeroStatLabel>
-              </HeroStat>
-            ))}
-          </div>
-        </HeroStatBar>
       </HeroStage>
+
+      {/* 数据带：两端一致，落在折叠线以下 */}
+      <HeroStatBar $delay={2}>
+        <div>
+          {heroStats.map((stat) => (
+            <HeroStat key={stat.label}>
+              <HeroStatValue>{stat.value}</HeroStatValue>
+              <HeroStatLabel>{stat.label}</HeroStatLabel>
+            </HeroStat>
+          ))}
+        </div>
+      </HeroStatBar>
 
       {/* ---------- 依托与合作 ---------- */}
       <PartnerBand aria-label="依托单位与合作机构">

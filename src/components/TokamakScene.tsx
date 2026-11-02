@@ -47,20 +47,21 @@ export function TokamakScene() {
       aria-label="托卡马克等离子体平衡位形示意：嵌套磁面与旋转诊断环"
     >
       <defs>
+        {/* 核心辉光只留一层很淡的蓝雾：它正好在标题背后，浓一点就会把字压花 */}
         <radialGradient id="fs-core" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-          <stop offset="22%" stopColor="#f0d5ff" stopOpacity="0.8" />
-          <stop offset="48%" stopColor="#e05cff" stopOpacity="0.4" />
-          <stop offset="78%" stopColor="#8b5cf6" stopOpacity="0.12" />
-          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+          <stop offset="0%" style={{ stopColor: 'var(--accent)', stopOpacity: 0.18 }} />
+          <stop offset="22%" style={{ stopColor: 'var(--accent)', stopOpacity: 0.12 }} />
+          <stop offset="48%" style={{ stopColor: 'var(--accent)', stopOpacity: 0.05 }} />
+          <stop offset="78%" style={{ stopColor: 'var(--accent)', stopOpacity: 0.02 }} />
+          <stop offset="100%" style={{ stopColor: 'var(--accent)', stopOpacity: 0 }} />
         </radialGradient>
         <linearGradient id="fs-flux" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#e05cff" />
-          <stop offset="100%" stopColor="#8b5cf6" />
+          <stop offset="0%" style={{ stopColor: 'var(--accent)' }} />
+          <stop offset="100%" style={{ stopColor: 'var(--accent-deep)' }} />
         </linearGradient>
         <linearGradient id="fs-arc" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#e05cff" />
-          <stop offset="100%" stopColor="#a78bfa" />
+          <stop offset="0%" style={{ stopColor: 'var(--accent)' }} />
+          <stop offset="100%" style={{ stopColor: 'var(--accent-ink)' }} />
         </linearGradient>
       </defs>
 
@@ -131,7 +132,7 @@ export function TokamakScene() {
         <circle cx="280" cy="280" r="86" fill="url(#fs-core)" />
         <circle cx="280" cy="280" r="44" fill="url(#fs-core)" />
       </PulseGroup>
-      <AxisDot cx="280" cy="280" r="5" fill="#fdf7ff" />
+      <AxisDot cx="280" cy="280" r="5" fill="var(--text)" />
 
       {/* 环向运行的粒子 */}
       <SweepGroup>

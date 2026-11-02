@@ -1,5 +1,6 @@
 import { css, styled } from 'styled-components'
 import { Link } from 'wouter'
+import { container, containers, fromContainer } from './responsive'
 
 /** 页面框架：header / 内容区 / footer。 */
 
@@ -13,18 +14,28 @@ export const Content = styled.main`
   flex-grow: 1;
 `
 
-export const HeaderBar = styled.header`
-  position: sticky;
+/**
+ * 顶部导航：`fixed` 贴住视口顶端（不再占用文档流高度，首屏才能铺满一屏）。
+ * 页面停在最上端时整条收起，向下滚动后滑出；收起时用 `visibility: hidden`
+ * 一并移出 Tab 焦点序列，过渡结束后才真正隐藏。
+ */
+export const HeaderBar = styled.header<{ $hidden: boolean }>`
+  ${container(containers.siteHeader)}
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 14px 4vw;
   background-color: var(--header-bg);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   border-bottom: 1px solid var(--line);
+  transform: translateY(${({ $hidden }) => ($hidden ? '-100%' : '0')});
+  visibility: ${({ $hidden }) => ($hidden ? 'hidden' : 'visible')};
+  transition:
+    transform 0.32s ease,
+    visibility 0.32s ease;
 
   /* 底部等离子体渐变发丝线 */
   &::after {
@@ -39,9 +50,23 @@ export const HeaderBar = styled.header`
     pointer-events: none;
   }
 
-  @media (max-width: 960px) {
-    flex-wrap: wrap;
-    gap: 16px;
+`
+
+/**
+ * 页头内容行：flex 布局放在容器内部，宽页头的 `nowrap` 才真的生效
+ * （元素不是自己的查询容器，写在 HeaderBar 里会变成一段永不匹配的 CSS）。
+ */
+export const HeaderBarInner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* 窄页头：品牌行与导航自动分行 */
+  flex-wrap: wrap;
+  gap: 16px;
+
+  ${fromContainer(containers.siteHeader, 'split')} {
+    flex-wrap: nowrap;
+    gap: 0;
   }
 `
 
@@ -59,7 +84,7 @@ export const BrandLogo = styled.span`
   height: 38px;
   aspect-ratio: 1469 / 466;
   background-color: var(--text);
-  filter: drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.35));
+  filter: drop-shadow(0 0 12px rgba(var(--accent-rgb), 0.18));
   -webkit-mask-image: url('/logos/fusim-logo.svg');
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
@@ -71,43 +96,49 @@ export const BrandLogo = styled.span`
 `
 
 export const Nav = styled.nav<{ $open: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 24px;
   font-size: 0.93rem;
   margin-left: auto;
   justify-content: flex-end;
 
-  /* 窄屏：默认收起，展开后纵向排列在「品牌 + 操作按钮」行下方 */
-  @media (max-width: 960px) {
-    ${({ $open }) =>
-      $open
-        ? css`
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            width: 100%;
-            gap: 6px;
-            order: 2;
-            padding: 10px 4px 16px;
-            border-top: 1px solid var(--line);
-          `
-        : css`
-            display: none;
-            order: 2;
-          `}
+  /* 窄页头：默认收起，展开后纵向排列在「品牌 + 操作按钮」行下方 */
+  ${({ $open }) =>
+    $open
+      ? css`
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          width: 100%;
+          gap: 6px;
+          order: 2;
+          padding: 10px 4px 16px;
+          border-top: 1px solid var(--line);
+        `
+      : css`
+          display: none;
+          order: 2;
+        `}
+
+  ${fromContainer(containers.siteHeader, 'split')} {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    gap: 24px;
+    order: 0;
+    padding: 0;
+    border-top: 0;
   }
 `
 
 const navLinkCss = css<{ $active?: boolean }>`
   position: relative;
-  padding: 6px 2px;
+  padding: 10px 4px;
   font-weight: 500;
   letter-spacing: 0.02em;
   color: ${({ $active }) => ($active ? 'var(--text)' : 'var(--text-muted)')};
   transition: color 0.2s ease;
 
-  /* 悬停/激活时浮现等离子体下划线 */
+  /* 悬停/激活时浮现的下划线（窄页头里不显示，避免与分隔线打架） */
   &::after {
     content: "";
     position: absolute;
@@ -115,11 +146,11 @@ const navLinkCss = css<{ $active?: boolean }>`
     right: 0;
     bottom: 0;
     height: 2px;
+    display: none;
     background: linear-gradient(90deg, var(--accent), var(--accent-deep));
     transform: scaleX(${({ $active }) => ($active ? 1 : 0)});
     transform-origin: left;
     transition: transform 0.25s ease;
-    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.5);
   }
 
   &:hover {
@@ -130,11 +161,11 @@ const navLinkCss = css<{ $active?: boolean }>`
     transform: scaleX(1);
   }
 
-  @media (max-width: 960px) {
-    padding: 10px 4px;
+  ${fromContainer(containers.siteHeader, 'split')} {
+    padding: 6px 2px;
 
     &::after {
-      display: none;
+      display: block;
     }
   }
 `
@@ -156,6 +187,8 @@ export const NavCta = styled.a`
   font-size: 0.9rem;
   letter-spacing: 0.04em;
   background: var(--surface-translucent);
+  margin-top: 10px;
+  text-align: center;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -164,12 +197,12 @@ export const NavCta = styled.a`
   &:hover {
     border-color: var(--accent);
     color: var(--accent-ink);
-    box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.25);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   }
 
-  @media (max-width: 960px) {
-    margin-top: 10px;
-    text-align: center;
+  ${fromContainer(containers.siteHeader, 'split')} {
+    margin-top: 0;
+    text-align: left;
   }
 `
 
@@ -177,9 +210,10 @@ export const HeaderActions = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
+  order: 1;
 
-  @media (max-width: 960px) {
-    order: 1;
+  ${fromContainer(containers.siteHeader, 'split')} {
+    order: 0;
   }
 `
 
@@ -201,38 +235,27 @@ const roundButtonCss = css`
   &:hover {
     border-color: var(--line-strong);
     color: var(--accent-ink);
-    box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.18);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
   }
 `
 
 export const ThemeButton = styled.button<{ $placement: 'nav' | 'mobile' }>`
   ${roundButtonCss}
   font-size: 0.85rem;
+  /* 窄页头把主题按钮收进操作区，宽页头放回导航尾部 */
+  display: ${({ $placement }) => ($placement === 'nav' ? 'none' : 'inline-flex')};
 
-  ${({ $placement }) =>
-    $placement === 'nav'
-      ? css`
-          display: inline-flex;
-
-          @media (max-width: 960px) {
-            display: none;
-          }
-        `
-      : css`
-          display: none;
-
-          @media (max-width: 960px) {
-            display: inline-flex;
-          }
-        `}
+  ${fromContainer(containers.siteHeader, 'split')} {
+    display: ${({ $placement }) => ($placement === 'nav' ? 'inline-flex' : 'none')};
+  }
 `
 
 export const NavToggle = styled.button`
   ${roundButtonCss}
-  display: none;
+  display: inline-flex;
 
-  @media (max-width: 960px) {
-    display: inline-flex;
+  ${fromContainer(containers.siteHeader, 'split')} {
+    display: none;
   }
 `
 
@@ -246,6 +269,7 @@ export const iconCss = css`
 /* ---------- Footer：多列站点地图 ---------- */
 
 export const FooterBar = styled.footer`
+  ${container(containers.siteFooter)}
   position: relative;
   margin-top: 0;
   padding: 72px 7vw 48px;
@@ -272,15 +296,15 @@ export const FooterGrid = styled.div`
   max-width: var(--max-width);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1.2fr;
+  grid-template-columns: 1fr;
   gap: 40px;
 
-  @media (max-width: 960px) {
+  ${fromContainer(containers.siteFooter, 'actions')} {
     grid-template-columns: 1fr 1fr;
   }
 
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
+  ${fromContainer(containers.siteFooter, 'split')} {
+    grid-template-columns: 1.6fr 1fr 1fr 1.2fr;
   }
 `
 
@@ -312,7 +336,7 @@ export const FooterLogo = styled.span`
   height: 36px;
   aspect-ratio: 2919 / 508;
   background-color: var(--text);
-  filter: drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.4));
+  filter: drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.18));
   -webkit-mask-image: url('/logos/fusim-logo-full.svg');
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
@@ -372,13 +396,8 @@ export const FooterBottom = styled.div`
     }
   }
 
+  /* 底行靠 flex wrapping 换行，不再需要视口断点 */
   & span:last-child {
     margin-left: auto;
-  }
-
-  @media (max-width: 760px) {
-    & span:last-child {
-      margin-left: 0;
-    }
   }
 `

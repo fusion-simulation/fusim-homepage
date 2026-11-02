@@ -8,7 +8,14 @@ import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-const BRAND = { bg: '#0b0714', glowA: '#8b5cf6', glowB: '#e05cff', ink: '#f3edff' }
+const BRAND = {
+  bg: '#0a0c10',
+  glowA: '#7aa2ff',
+  glowB: '#ffb067',
+  ink: '#eef2f7',
+  /** 暖光只留一层薄雾：暗底上不透明度一高就是一块脏棕色。 */
+  glowBOpacity: 0.12,
+}
 
 /** 现有 SVG 是纯黑填充，深色品牌底上必须换成浅墨色（源 SVG 不动）。 */
 async function logoPng(svgRel, width) {
@@ -32,7 +39,7 @@ function backdrop(width, height) {
         <stop offset="1" stop-color="${BRAND.glowA}" stop-opacity="0"/>
       </radialGradient>
       <radialGradient id="glow-b" cx="8%" cy="-4%" r="58%">
-        <stop offset="0" stop-color="${BRAND.glowB}" stop-opacity="0.32"/>
+        <stop offset="0" stop-color="${BRAND.glowB}" stop-opacity="${BRAND.glowBOpacity}"/>
         <stop offset="1" stop-color="${BRAND.glowB}" stop-opacity="0"/>
       </radialGradient>
     </defs>

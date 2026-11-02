@@ -21,20 +21,24 @@ export const TreeList = styled.ul`
 `
 
 export const TreeItem = styled.li`
+  min-width: 0;
   margin-bottom: 0.2rem;
 `
 
 export const TreeSize = styled.span<{ $variant?: 'site' | 'attachment' }>`
   margin-left: 0.5rem;
   font-size: 0.8em;
-  color: ${({ $variant }) => ($variant === 'attachment' ? '#5b667a' : 'var(--text-muted)')};
+  color: ${({ $variant }) => ($variant === 'attachment' ? '#5a6472' : 'var(--text-muted)')};
 `
 
 export const TreeFileLink = styled.a<{ $onAttachmentPage?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
-  color: ${({ $onAttachmentPage }) => ($onAttachmentPage ? '#0056b3' : 'var(--accent-ink)')};
+  max-width: 100%;
+  /* 长文件名在窄容器里换行，不产生横向溢出 */
+  overflow-wrap: anywhere;
+  color: ${({ $onAttachmentPage }) => ($onAttachmentPage ? '#1b46c2' : 'var(--accent-ink)')};
 
   &:hover {
     text-decoration: underline;
@@ -48,6 +52,8 @@ export const TreeSummary = styled.summary`
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 `
 
 export const TreeDirLink = styled.a`
@@ -73,9 +79,9 @@ export const DataFiles = styled.div`
 export const AttachmentRoot = styled.div`
   background-color: #fff;
   min-height: 100vh;
-  color: #333;
+  color: #101418;
   font-family: sans-serif;
-  padding: 4rem 2rem;
+  padding: clamp(2rem, 5vw, 4rem) clamp(1rem, 4vw, 2rem);
 `
 
 export const AttachmentInner = styled.div`
@@ -86,7 +92,7 @@ export const AttachmentInner = styled.div`
 export const BackLink = styled.a`
   display: inline-block;
   margin-bottom: 2rem;
-  color: #0056b3;
+  color: #1b46c2;
   text-decoration: none;
   font-weight: 500;
 

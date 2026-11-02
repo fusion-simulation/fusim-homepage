@@ -2,6 +2,7 @@ import { css, styled } from 'styled-components'
 import { Link } from 'wouter'
 import { ExternalLinkIcon } from '../components/Icons'
 import { type RevealProps, reveal } from './animation'
+import { container, containers, fromContainer } from './responsive'
 
 export { Reveal } from './animation'
 
@@ -15,7 +16,8 @@ export { Reveal } from './animation'
 /** 全出血区块：负责节奏（留白、底色带），内容交给 Shell。 */
 export const Band = styled.section<{ $tint?: boolean; $hairline?: boolean }>`
   position: relative;
-  padding: 112px 0;
+  /* 区块节奏走 clamp：窄屏收紧，宽屏回到原来 112px 的留白 */
+  padding: clamp(5rem, 9vw, 7rem) 0;
   scroll-margin-top: 72px;
 
   ${({ $tint }) =>
@@ -34,22 +36,27 @@ export const Band = styled.section<{ $tint?: boolean; $hairline?: boolean }>`
         `
       : ''}
 
-  @media (max-width: 960px) {
-    padding: 80px 0;
-  }
+`
+
+/**
+ * 内容容器：两端留白算进宽度（而不是 padding），
+ * 这样容器查询量到的就是真正的内容宽度，宽视口下也不会被 7vw 越挤越窄。
+ * 顺带与 FooterGrid / Section 的内容宽度对齐到同一个 --max-width。
+ */
+const shellCss = css`
+  ${container(containers.shell)}
+  width: min(100% - 14vw, var(--max-width));
+  margin: 0 auto;
 `
 
 /** 内容容器。 */
 export const Shell = styled.div`
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 0 7vw;
+  ${shellCss}
 `
 
 export const ShellWide = styled.div`
-  max-width: var(--max-width-wide);
-  margin: 0 auto;
-  padding: 0 7vw;
+  ${shellCss}
+  width: min(100% - 14vw, var(--max-width-wide));
 `
 
 /** mono 眉题：SECTION KEY。 */
@@ -96,9 +103,10 @@ export const SectionHead = styled.div<RevealProps>`
 /* ---------- 内页通用 Section（保留给内容页） ---------- */
 
 export const Section = styled.section`
-  max-width: var(--max-width);
+  ${container(containers.shell)}
+  width: min(100% - 14vw, var(--max-width));
   margin: 0 auto;
-  padding: 72px 7vw;
+  padding: clamp(3rem, 6vw, 4.5rem) 0;
   display: grid;
   gap: 32px;
   scroll-margin-top: 88px;
@@ -118,7 +126,7 @@ export const Section = styled.section`
     width: 5px;
     height: 0.9em;
     background: linear-gradient(180deg, var(--accent), var(--accent-deep));
-    box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.45);
+    box-shadow: none;
   }
 
   & p {
@@ -146,7 +154,7 @@ export const Meta = styled.p`
 
 export const CardGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 20px;
 `
 
@@ -183,7 +191,7 @@ const cardCss = css`
     border-color: var(--line-strong);
     box-shadow:
       var(--shadow-card),
-      0 0 32px rgba(var(--accent-rgb), 0.14);
+      0 10px 28px rgba(0, 0, 0, 0.1);
   }
 
   &:hover::before {
@@ -216,7 +224,7 @@ export const CardAnchor = styled.a<RevealProps>`
 
 export const Split = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 28px;
 `
 
@@ -226,10 +234,10 @@ export const Quote = styled.p`
   border-left: 2px solid var(--accent);
   padding-left: 18px;
   letter-spacing: 0.02em;
-  text-shadow: 0 0 24px rgba(var(--accent-rgb), 0.2);
 `
 
 export const Timeline = styled.div`
+  ${container(containers.timeline)}
   display: grid;
   gap: 14px;
 `
@@ -237,8 +245,8 @@ export const Timeline = styled.div`
 export const TimelineItem = styled.div<RevealProps>`
   ${reveal}
   display: grid;
-  grid-template-columns: 100px 1fr;
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 6px;
   padding: 18px 0;
   border-bottom: 1px dashed var(--line-strong);
 
@@ -248,8 +256,9 @@ export const TimelineItem = styled.div<RevealProps>`
     font-size: 0.95rem;
   }
 
-  @media (max-width: 960px) {
-    grid-template-columns: 1fr;
+  ${fromContainer(containers.timeline, 'split')} {
+    grid-template-columns: 100px 1fr;
+    gap: 18px;
   }
 `
 
@@ -274,7 +283,6 @@ export const HeroTag = styled.p`
     height: 7px;
     transform: rotate(45deg);
     background: var(--accent);
-    box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.9);
   }
 `
 
@@ -303,17 +311,17 @@ const chamferCss = css`
 
 const buttonVariants = {
   primary: css`
-    background: linear-gradient(120deg, var(--accent), var(--accent-deep));
-    color: #170322;
+    background: var(--accent);
+    color: var(--on-accent);
     box-shadow:
-      0 14px 34px rgba(var(--accent-rgb), 0.28),
-      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      0 14px 34px rgba(0, 0, 0, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
     ${chamferCss}
 
     &:hover {
       box-shadow:
-        0 18px 44px rgba(var(--accent-rgb), 0.42),
-        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        0 18px 44px rgba(0, 0, 0, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
     }
   `,
   secondary: css`
@@ -326,21 +334,21 @@ const buttonVariants = {
     &:hover {
       border-color: var(--accent);
       color: var(--accent-ink);
-      box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.2);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
     }
   `,
   accent: css`
-    background: linear-gradient(120deg, var(--gold), var(--gold-deep));
-    color: #170322;
+    background: var(--gold);
+    color: var(--on-accent);
     box-shadow:
-      0 14px 34px rgba(var(--hl-rgb), 0.26),
-      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      0 14px 34px rgba(0, 0, 0, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
     ${chamferCss}
 
     &:hover {
       box-shadow:
-        0 18px 44px rgba(var(--hl-rgb), 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        0 18px 44px rgba(0, 0, 0, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
     }
   `,
   light: css`
