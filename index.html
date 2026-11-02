@@ -9,7 +9,7 @@
     />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#f7f8fa" />
-    <!-- 主题脚本必须排在任何外部样式表之前：被字体 CSS 卡住时 body 都还没解析出来 -->
+    <!-- 主题脚本放在样式之前：首屏脚本同步执行，避免主题闪烁 -->
     <script>
       // 亮色（白纸 + 墨色）为默认主题；URL ?theme= 可显式指定，用户切换后记住选择。
       const fromUrl = new URLSearchParams(location.search).get('theme')
@@ -31,10 +31,19 @@
     <title>聚核智算 FUSIM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- 字体样式表非阻塞加载：先以 preload 拉取，onload 后切换为 stylesheet；无 JS 时由 noscript 兜底 -->
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap"
-      rel="stylesheet"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      />
+    </noscript>
     <style>
       /* 首屏全局样式：必须内联在 head 里，createGlobalStyle 要等 JS 执行才注入会闪白 */
 
@@ -129,7 +138,7 @@
         padding: 0;
       }
 
-      /* 页头固定在视口顶端：页面内锚点（如 #contact）跳转时自动让出页头高度 */
+      /* 页头固定在视口顶端：页面内锚点跳转时自动让出页头高度 */
       html {
         scroll-padding-top: var(--header-h);
       }
