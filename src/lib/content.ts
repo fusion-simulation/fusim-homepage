@@ -7,7 +7,7 @@ export type Frontmatter = {
   order?: number
   desp?: string
   external_url?: string
-  /** 对应原 `service_*.md` 中 `<style>` 的宽版正文（2400px）。 */
+  /** 历史字段（原 `service_*.md` 的宽版正文标记）。正文列现已统一为阅读宽度，渲染不再读取它。 */
   wide?: boolean
   product_section?: string
   section_key?: string

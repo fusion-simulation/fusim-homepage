@@ -1,4 +1,5 @@
 import { styled } from 'styled-components'
+import { PageHeader } from '../components/PageHeader'
 import type { ContentPage } from '../lib/content'
 import { ProseArticle, ProseCard } from '../styles/prose'
 import { Card, HeroTag, Meta, Reveal, Section } from '../styles/shared'
@@ -6,6 +7,12 @@ import { Card, HeroTag, Meta, Reveal, Section } from '../styles/shared'
 const JournalArticle = styled(Card)`
   margin-top: 24px;
 `
+
+const EYEBROW_BY_KIND: Record<'product' | 'product_section' | 'page', string> = {
+  product: 'Products',
+  product_section: 'Solutions',
+  page: 'Page',
+}
 
 export function MdxPage({ page }: { page: ContentPage }) {
   const { Component, frontmatter, kind } = page
@@ -25,9 +32,15 @@ export function MdxPage({ page }: { page: ContentPage }) {
     )
   }
 
-  if (kind === 'product' || kind === 'product_section') {
-    return (
-      <ProseArticle $wide={frontmatter.wide}>
+  return (
+    <>
+      <PageHeader
+        eyebrow={EYEBROW_BY_KIND[kind]}
+        title={frontmatter.title ?? ''}
+        description={frontmatter.description}
+        width="reading"
+      />
+      <ProseArticle>
         {kind === 'product' ? (
           <ProseCard>
             <Component />
@@ -36,8 +49,6 @@ export function MdxPage({ page }: { page: ContentPage }) {
           <Component />
         )}
       </ProseArticle>
-    )
-  }
-
-  return <Component />
+    </>
+  )
 }

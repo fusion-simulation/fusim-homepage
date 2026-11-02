@@ -17,7 +17,8 @@ export const proseCss = css`
   & h2 {
     line-height: 1.2;
     letter-spacing: -0.02em;
-    font-size: 1.6rem;
+    /* 窄屏按视口宽度收缩，但不低于 1.3rem、不高于 1.6rem */
+    font-size: clamp(1.3rem, 4vw, 1.6rem);
     margin-top: 26px;
   }
 
@@ -31,6 +32,16 @@ export const proseCss = css`
   & h4 {
     line-height: 1.2;
     letter-spacing: -0.02em;
+  }
+
+  /* 层级：h2 ≥ h3 > h5 > 正文，h5 必须小于 h3 */
+  & h5 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin-top: 36px;
   }
 
   & p {
@@ -120,13 +131,18 @@ export const proseCss = css`
   }
 `
 
-/** 产品页正文容器：`$wide` 对应 frontmatter 的 `wide: true`（2400px）。 */
-export const ProseArticle = styled.article<{ $wide?: boolean }>`
+/**
+ * 内容页正文列：固定阅读宽度（上限 860px，约 60–80 字符/行），
+ * 两侧留白与站点 Shell 一致（14vw），窄屏自然收窄为两侧 7vw。
+ * 顶部间距交给 PageHeader，这里不再保留 padding-top。
+ */
+export const ProseArticle = styled.article`
   ${container(containers.prose)}
   ${proseCss}
+  width: min(100% - 14vw, 860px);
   margin: 0 auto;
-  max-width: ${({ $wide }) => ($wide ? '2400px' : '860px')};
-  padding: ${({ $wide }) => ($wide ? '72px 20px 20px' : '72px 7vw 20px')};
+  padding: 0 0 24px;
+  font-size: 1.0625rem;
 `
 
 export const ProseCard = styled.div`
