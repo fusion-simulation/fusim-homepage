@@ -3,13 +3,13 @@ name: Build and Deploy
 on:
   push:
     branches:
-      - main
+      - dev
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-main
+  group: deploy-dev
   cancel-in-progress: false
 
 jobs:
