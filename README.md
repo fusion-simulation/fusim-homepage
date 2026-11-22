@@ -1,6 +1,6 @@
 # 聚核智算 FUSIM 官网
 
-基于 **React 19 + wouter + styled-components + MDX** 重写的 FUSIM 企业门户，内容与页面结构对齐原 Lume 站点（`fusim-homepage/`）：首页、公司新闻、社会报导、产品矩阵、论文发表、关于我们、企业责任，以及论文附件目录页。
+基于 **React 19 + wouter + styled-components + MDX** 重写的 FUSIM 企业门户，内容与页面结构对齐原 Lume 站点（`fusim-homepage/`）：首页、公司新闻、社会报导、产品矩阵、论文发表、关于我们、企业责任。
 
 ## 技术栈
 
@@ -62,7 +62,7 @@ npm test           # webpack-plugins 单元测试（node --test）
   改 `.mdx` 内容会是整页刷新（没有 refresh 边界）。
 - **虚拟模块**：`virtual:publications` 会被 webpack 当成 URI scheme，用 `NormalModuleReplacementPlugin`
   指到 `webpack-plugins/virtual-publications.js`，内容由 loader 生成；`addContextDependency` 盯住
-  `public/assets/pub`，新增 / 删除附件会触发重编。
+  `public/assets/pub`，新增 / 删除论文 PDF 会触发重编。
 - **一份 loader 链，两次编译**：server bundle 只换 `target` / `entry` / `output`，loader 规则复用
   `webpack.config.mjs` 导出的 `createModuleRules({ isDev })`。MDX 编译、WebP 引用改写这些环节若两边
   各写一份，预渲染的 HTML 与客户端 hydrate 的内容就会分叉。
@@ -88,8 +88,8 @@ src/
   main.tsx                  # 客户端入口（预渲染产物走 hydrateRoot，dev 走 createRoot）
   ssr.tsx                   # server bundle 入口：routes / render / siteInfo
   App.tsx                   # 路由表 + 标题同步
-  components/               # Header / Footer / Layout / DataTree / 图标
-  pages/                    # 各页面（首页、产品、论文、附件目录...）
+  components/               # Header / Footer / Layout / 图标
+  pages/                    # 各页面（首页、产品、论文...）
   content/                  # 站点数据 + MDX 内容
   lib/                      # 内容索引、meta、论文数据
   styles/                   # styled 组件
@@ -118,7 +118,7 @@ public/assets/              # 图片、论文 PDF 等静态资源
   | --- | --- |
   | `products/*.mdx` | 产品页（prose + 卡片） |
   | `products/sections/*.mdx` | 产品分组（列表页区块，也可独立访问） |
-  | `journal/*.mdx` | 日志列表 + 详情页 |
+  | `journal/*.mdx` | 公司新闻列表 + 详情页 |
   | 其他目录 | 普通正文页 |
 
 - **frontmatter 字段**（只保留真正会用到的）：
@@ -133,9 +133,9 @@ public/assets/              # 图片、论文 PDF 等静态资源
   | `product_section` | 产品所属分组（对应分组的 `section_key`） |
   | `section_key` | 分组键，同时用作锚点 id |
   | `wide` | 宽版正文（2400px，对应原 `<style>` 覆盖） |
-  | `date` | 日志日期（列表倒序、详情页展示） |
+  | `date` | 公司新闻日期（列表倒序、详情页展示） |
 
-- **公司新闻 / 日志**：在 `src/content/journal/` 新增 `.mdx` 即可，列表与详情页会自动生成：
+- **公司新闻**：在 `src/content/journal/` 新增 `.mdx` 即可，列表与详情页会自动生成：
 
   ```mdx
   ---
@@ -145,28 +145,10 @@ public/assets/              # 图片、论文 PDF 等静态资源
   ---
   ```
 
-- **论文与附件**：把 PDF 放到 `public/assets/pub/<年份>/<条目>/`。构建期会自动：
-  - 以目录中的第一个 PDF 作为论文条目（标题取文件名）；
-  - 同级的其他文件、子目录作为「附加文件」树展示；
-  - 为每个子目录生成独立附件目录页（`/assets/pub/<年份>/<条目>/<子目录>/`）。
+- **论文**：把 PDF 放到 `public/assets/pub/<年份>/<条目>/`。构建期会自动以目录中的第一个 PDF
+  作为论文条目（标题取文件名）。论文页面只展示 PDF 本身，不带附件。
 
-  所以请**先放文件、再构建**（`npm run dev` 时新增/删除附件会自动刷新）。
-
-  论文附件中的大数据文件（`*.dat`、`*_dump.*`、`*_energy.*` 等）**不入库**（见 `.gitignore`），
-  部署时单独上传到静态服务器的 `/assets/pub/...`。为了让这些远程文件也出现在列表与附件目录页中，
-  在 `src/content/publications.manifest.json` 里声明：
-
-  ```json
-  {
-    "attachments": [
-      { "path": "2026/1/data/pe_gh052025x01_dump.40000", "size": 450698528 }
-    ]
-  }
-  ```
-
-  - `path`：相对 `public/assets/pub` 的路径；
-  - `size`：字节数（可省略，省略时列表不显示大小）；
-  - 本地文件会自动合并（同名以本地文件为准），清单里的目录同样会生成附件目录页。
+  所以请**先放文件、再构建**（`npm run dev` 时新增/删除 PDF 会自动刷新）。
 
 - **页头 / 页脚 / 备案号 / 社会报导**：`src/content/site.ts`。
 
@@ -176,7 +158,7 @@ public/assets/              # 图片、论文 PDF 等静态资源
   `layout.ts`（Header/Footer）、`page.ts`（内页页头）、`hero.ts`（全屏 Hero）、`home.ts`（首页专属区块）、
   `prose.ts` / `publications.ts`，各自导出 styled 组件；只在单个页面用一次的组件直接写在页面文件里。
   动画片段 `reveal` + `$delay`（0–3）实现入场级联；首页信息架构：全屏 Hero → 合作带 → 三大核心技术 →
-  工作流对比 → 产品矩阵 → 成果验证 → CTA。
+  工作流对比 → 产品矩阵 → 成果验证 → 最新动态 → CTA。
 - **数学公式**：`webpack-plugins/mathjax.ts` 只加载 MathJax 的 `input/tex` + `output/svg` + `adaptors/liteDOM`，
   不加载 `a11y/sre`（它会在 Node 里起 worker thread 让构建进程无法退出，且让公式体积翻三倍）。
   SVG 自带字形路径，用 `aria-label` 写入 TeX 源码作为可访问名称。相同公式按 `display + tex` 缓存。
@@ -187,7 +169,7 @@ public/assets/              # 图片、论文 PDF 等静态资源
   一并移出 Tab 焦点序列。锚点跳转由 `html { scroll-padding-top: var(--header-h) }` 让出页头高度。
   首页 Hero 用 `min-height: 100svh`（`100vh` 兜底）铺满一屏，数据带 `HeroStatBar` 放在 section
   之外、落在折叠线以下，滚动一点才露出来。
-- **论文附件**：「更新」时间取 PDF 的文件修改时间，因此与构建环境中的文件时间有关。
+- **论文**：「更新」时间取 PDF 的文件修改时间，因此与构建环境中的文件时间有关。
 - **原 `<style>` 覆盖**：`products/service_*.md` 里用于把正文放宽到 2400px 的 `<style>` 块
   改为 frontmatter 的 `wide: true`，由 `ProseArticle` 的 `$wide` 变体实现（效果一致，且不会污染全局）。
 - **代码块**：MDX 代码块会得到 `.prose pre / code` 样式，但不再引入 Prism 语法高亮
@@ -226,8 +208,7 @@ public/assets/              # 图片、论文 PDF 等静态资源
   JSON-LD 每页都带 `Organization`，首页加 `WebSite`，journal 详情（`og:type=article`）加 `Article`；
   `404.html` 只写 `noindex`，不写 canonical / OG / JSON-LD，也不进 sitemap。
   客户端路由切换时 `useDocumentMeta` 同步 title / description / canonical，不会停在首次进入的那一页。
-- **`robots.txt`**：允许全站，但挡掉附件里不入库的大文件（`*.dat`、`*_dump`、`*_energy`），
-  末尾指向 `sitemap.xml`。
+- **`robots.txt`**：允许全站，末尾指向 `sitemap.xml`。
 - **`sitemap.xml`**：构建时按全部预渲染路由生成，journal 详情带 frontmatter 的 `date` 作为 `lastmod`。
 - **社交分享图与 logo**：`public/og-image.png` 与 `public/logos/fusim-logo-512.png` 在
   `webpack.config.mjs` 的 `PASSTHROUGH_IMAGE_URLS` 里跳过 WebP 转码——`og:image` 与 JSON-LD 的 `logo`
@@ -250,5 +231,4 @@ public/assets/              # 图片、论文 PDF 等静态资源
   ```
 
   不再回退到 `index.html`：未命中的路径必须保持 404，否则任意路径都会被当成首页。
-- 对象存储 / CDN：把 404 文档指向站点根目录的 `404.html`；
-- 论文附件中的大数据文件（dump / energy 等）不随构建产物发布，需单独上传到静态服务器的 `/assets/pub/...`。
+- 对象存储 / CDN：把 404 文档指向站点根目录的 `404.html`。

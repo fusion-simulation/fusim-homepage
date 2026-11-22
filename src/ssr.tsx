@@ -3,9 +3,8 @@ import { ServerStyleSheet, StyleSheetManager } from 'styled-components'
 import { Router } from 'wouter'
 import { App } from './App.tsx'
 import { site } from './content/site.ts'
-import { contentPageByUrl } from './lib/content.ts'
+import { contentPageByUrl, isArticleKind } from './lib/content.ts'
 import { normalizePath, resolveMeta, staticRoutePaths } from './lib/meta.ts'
-import { attachmentDirByUrl } from './lib/publications.ts'
 
 /** 未知路径的哨兵：只用于渲染 404 页的完整 App 树，客户端永远不会请求它。 */
 export const NOT_FOUND_PATH = '/__404__/'
@@ -32,28 +31,22 @@ export type RenderedPage = {
 }
 
 /**
- * 全部要预渲染的路由：静态页 + MDX 内容页 + 论文附件目录页。
- * product_section（产品分组片段）只作为 /products/ 页的一部分渲染，没有独立页面，不进入预渲染与 sitemap。
+ * 全部要预渲染的路由：静态页 + MDX 内容页。
+ * 产品分组不再是独立内容（矩阵页的数据在 `src/content/product-matrix.ts`），因此没有需要排除的片段页。
  */
 export const routes: string[] = [
-  ...new Set([
-    ...staticRoutePaths,
-    ...[...contentPageByUrl.values()]
-      .filter((page) => page.kind !== 'product_section')
-      .map((page) => page.url),
-    ...attachmentDirByUrl.keys(),
-  ]),
+  ...new Set([...staticRoutePaths, ...[...contentPageByUrl.values()].map((page) => page.url)]),
 ].sort()
 
 function isKnownPath(url: string): boolean {
-  return staticRoutePaths.includes(url) || contentPageByUrl.has(url) || attachmentDirByUrl.has(url)
+  return staticRoutePaths.includes(url) || contentPageByUrl.has(url)
 }
 
 /** 在 Node 里渲染单个路由：wouter 注入固定路径（navigate 是空实现），样式由 ServerStyleSheet 收集。 */
 export function render(pathname: string): RenderedPage {
   const url = normalizePath(pathname)
   const page = contentPageByUrl.get(url)
-  const isJournal = page?.kind === 'journal'
+  const isArticle = page ? isArticleKind(page.kind) : false
   const sheet = new ServerStyleSheet()
 
   try {
@@ -68,8 +61,8 @@ export function render(pathname: string): RenderedPage {
     return {
       url,
       ...resolveMeta(url),
-      ogType: isJournal ? 'article' : 'website',
-      date: isJournal ? page.frontmatter.date : undefined,
+      ogType: isArticle ? 'article' : 'website',
+      date: isArticle ? page?.frontmatter.date : undefined,
       notFound: !isKnownPath(url),
       body,
       styles: sheet.getStyleTags(),

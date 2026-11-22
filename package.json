@@ -8,6 +8,7 @@
     "build": "tsc -b && webpack --mode production && node scripts/prerender.mjs",
     "lint": "biome check",
     "test": "node --test webpack-plugins/*.test.ts",
+    "check:dist": "node scripts/check-dist.mjs",
     "preview": "node scripts/preview.mjs",
     "format": "biome check --write"
   },

@@ -1,12 +1,19 @@
+import { Link } from 'wouter'
 import { site } from '../content/site'
 import {
   FooterBar,
   FooterBottom,
   FooterBrandCol,
   FooterCol,
+  FooterColTitle,
   FooterGrid,
   FooterLogo,
 } from '../styles/layout'
+
+/** 站点 2025 年上线。版权年份写成区间，跨年时不用再来改。 */
+const SINCE = 2025
+const currentYear = new Date().getFullYear()
+const copyright = `© ${SINCE}${currentYear > SINCE ? `–${currentYear}` : ''} FUSIM. All rights reserved.`
 
 const SiteLinks = [
   { href: '/products/', label: '产品矩阵' },
@@ -34,37 +41,37 @@ export function Footer() {
         </FooterBrandCol>
 
         <FooterCol aria-label="页面导航">
-          <h4>页面</h4>
+          <FooterColTitle>页面</FooterColTitle>
           {SiteLinks.map((item) => (
-            <a key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href}>
               {item.label}
-            </a>
+            </Link>
           ))}
         </FooterCol>
 
         <FooterCol aria-label="产品导航">
-          <h4>产品</h4>
-          {ProductLinks.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              {...(item.href.startsWith('http')
-                ? { target: '_blank', rel: 'noopener noreferrer' }
-                : {})}
-            >
-              {item.label}
-            </a>
-          ))}
+          <FooterColTitle>产品</FooterColTitle>
+          {ProductLinks.map((item) =>
+            item.href.startsWith('http') ? (
+              <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer">
+                {item.label}
+              </a>
+            ) : (
+              <Link key={item.href} href={item.href}>
+                {item.label}
+              </Link>
+            ),
+          )}
         </FooterCol>
 
         <FooterCol aria-label="合规信息">
-          <h4>合规</h4>
+          <FooterColTitle>合规</FooterColTitle>
           <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">
             {site.icp}
           </a>
           <a
             href="https://beian.mps.gov.cn/#/query/webSearch?code=42018502008408"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             target="_blank"
           >
             {site.mps}
@@ -73,7 +80,8 @@ export function Footer() {
       </FooterGrid>
 
       <FooterBottom>
-        <span>© 2025 FUSIM. All rights reserved.</span>
+        {/* 预渲染产物带的是构建时的年份，跨年时以浏览器为准，故抑制 hydration 差异告警。 */}
+        <span suppressHydrationWarning>{copyright}</span>
         <span>{site.slogan}</span>
       </FooterBottom>
     </FooterBar>

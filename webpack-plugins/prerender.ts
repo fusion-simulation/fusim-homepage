@@ -102,15 +102,7 @@ export function buildSitemap(pages: readonly PageSeo[], site: SiteInfo): string 
 }
 
 export function buildRobots(site: SiteInfo): string {
-  return [
-    'User-agent: *',
-    'Allow: /',
-    'Disallow: /*.dat',
-    'Disallow: /*_dump',
-    'Disallow: /*_energy',
-    `Sitemap: ${site.url}/sitemap.xml`,
-    '',
-  ].join('\n')
+  return ['User-agent: *', 'Allow: /', `Sitemap: ${site.url}/sitemap.xml`, ''].join('\n')
 }
 
 export type ShellPage = PageSeo & { body: string; styles: string }

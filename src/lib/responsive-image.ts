@@ -10,6 +10,41 @@
 export const IMAGE_VARIANT_WIDTHS = [480, 800, 1200, 1600] as const
 
 /**
+ * 正文列的宽度上限：与 `ProseArticle` 的 `min(100% - 14vw, 860px)` 保持一致。
+ * `sizes` 必须描述**真实槽位**，否则浏览器会按 `100vw` 选图：Firefox 不认 `sizes="auto"`
+ * 写在列表里的形式（`auto, 100vw` 整条声明失效），720px 的槽位会去下 1280w 的原图。
+ */
+export const IMAGE_SLOT_WIDTH = 860
+
+/** 正文两侧留白：`ProseArticle` 用 `100% - 14vw`，即 86vw。 */
+const SLOT_VIEWPORT_RATIO = 0.86
+
+/**
+ * 图片真正能占到的宽度：展示上限（`displayWidth`）与固有宽度取小，再夹到阅读列。
+ *
+ * `Figure` 的 `max-width` 就是这个值，`sizes` 必须与它一致——否则 936px 的图放在
+ * 720px 的槽位里，浏览器会以为要 860px 而多下一档。
+ */
+export function figureSlotWidth(
+  intrinsicWidth: number,
+  displayWidth?: number,
+  slotWidth: number = IMAGE_SLOT_WIDTH,
+): number {
+  return Math.min(displayWidth ?? intrinsicWidth, intrinsicWidth, slotWidth)
+}
+
+/**
+ * 生成 `sizes`：视口宽到阅读列上限后固定为槽位宽度（小图用自己的固有宽度，不拉大候选），
+ * 更窄的视口按 86vw 收缩。
+ */
+export function imageSizes(intrinsicWidth: number, slotWidth: number = IMAGE_SLOT_WIDTH): string {
+  const desktop = Math.min(slotWidth, intrinsicWidth)
+  const breakpoint = Math.round(desktop / SLOT_VIEWPORT_RATIO)
+
+  return `(min-width: ${breakpoint}px) ${desktop}px, 86vw`
+}
+
+/**
  * 把 `/a.webp` 映射成 `/a-480.webp`，目录与 query/hash 原样保留。
  *
  * 先切掉 query/hash 再找扩展名：`?v=1.2` 或 `#fig.2` 里的点不能被当成扩展名，
@@ -48,12 +83,13 @@ export type ResponsiveImageAttributes = {
 }
 
 /**
- * 正文图的属性契约：`sizes="auto, 100vw"` 让浏览器按真实槽位选图（旧浏览器回落 100vw），
- * 前提是图片必须 `loading="lazy"`，所以两者一起产出，不留给调用方拼错的机会。
+ * 正文图的属性契约：`sizes` 按真实槽位（阅读列上限 / 86vw）选图，前提是图片必须
+ * `loading="lazy"`，所以两者一起产出，不留给调用方拼错的机会。
  */
 export function responsiveImageAttributes(
   src: string,
   intrinsicWidth: number,
+  slotWidth: number = IMAGE_SLOT_WIDTH,
 ): ResponsiveImageAttributes {
   // 构建期整组失败（变体名冲突 / 编码失败）时 loader 不会把 src 改写成 .webp，
   // 也就没有任何候选文件——只输出单张原图，绝不拼一个指向空气的 srcSet。
@@ -64,7 +100,7 @@ export function responsiveImageAttributes(
   return {
     src,
     srcSet: buildResponsiveSrcSet(src, intrinsicWidth),
-    sizes: 'auto, 100vw',
+    sizes: imageSizes(intrinsicWidth, slotWidth),
     loading: 'lazy',
     decoding: 'async',
   }

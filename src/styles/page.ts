@@ -1,7 +1,7 @@
 import { styled } from 'styled-components'
 import { Shell } from './shared'
 
-/** 内页页头：mono 眉题 + 大标题 + 描述，底部发丝线。 */
+/** 内页页头：大标题 + 描述，底部发丝线。 */
 
 export const PageHero = styled.header`
   border-bottom: 1px solid var(--line);
@@ -20,14 +20,6 @@ export const PageHeroInner = styled(Shell)`
 /** 阅读列页头：与内容页正文列同宽（860px），标题与正文左缘对齐。 */
 export const PageHeroReadingInner = styled(PageHeroInner)`
   width: min(100% - 14vw, 860px);
-`
-
-export const PageEyebrow = styled.p`
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.3em;
-  color: var(--accent-ink);
-  text-transform: uppercase;
 `
 
 export const PageTitle = styled.h1`

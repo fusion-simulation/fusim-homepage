@@ -1,5 +1,5 @@
 import { styled } from 'styled-components'
-import { responsiveImageAttributes } from '../lib/responsive-image'
+import { figureSlotWidth, responsiveImageAttributes } from '../lib/responsive-image'
 
 type ResponsiveImageProps = {
   /** 源图 URL（构建管线会改写成 base `.webp`）。 */
@@ -33,7 +33,7 @@ const Img = styled.img`
 `
 
 /**
- * 正文内容图：输出 `srcSet` + `sizes="auto, 100vw"` + 固有宽高 + 懒加载，
+ * 正文内容图：输出 `srcSet` + 按真实槽位算出的 `sizes` + 固有宽高 + 懒加载，
  * 与构建期生成的多宽度 WebP 一一对应。所有值都是确定性计算，SSR 与客户端一致。
  */
 export function ResponsiveImage({
@@ -44,9 +44,10 @@ export function ResponsiveImage({
   displayWidth,
   caption,
 }: ResponsiveImageProps) {
-  const attrs = responsiveImageAttributes(src, width)
   // 展示槽位不超过固有宽度：小图不被放大，大图按上限收窄
   const maxWidth = Math.min(displayWidth ?? width, width)
+  // `sizes` 与 Figure 的 max-width 用同一个值，浏览器才不会按整列宽度过采
+  const attrs = responsiveImageAttributes(src, width, figureSlotWidth(width, displayWidth))
 
   return (
     <Figure $maxWidth={maxWidth}>

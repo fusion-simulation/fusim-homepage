@@ -1,8 +1,7 @@
 declare module 'virtual:publications' {
-  import type { AttachmentDir, PublicationGroup } from '../lib/publication-types'
+  import type { PublicationGroup } from '../lib/publication-types'
 
   export const publications: PublicationGroup[]
-  export const attachmentDirs: AttachmentDir[]
 }
 
 declare module '*.mdx' {

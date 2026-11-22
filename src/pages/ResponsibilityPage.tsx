@@ -5,7 +5,6 @@ export function ResponsibilityPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Responsibility"
         title="企业责任"
         description="我们以绿色算力、开放协作与人才成长作为核心责任方向，持续投入社会与生态建设。"
       />
@@ -13,11 +12,11 @@ export function ResponsibilityPage() {
       <Section id="responsibility">
         <Split>
           <Card $delay={1}>
-            <h4>绿色算力计划</h4>
+            <h2>绿色算力计划</h2>
             <p>推进低碳数据中心、能源协同与算力效率优化，减少每单位算力消耗。</p>
           </Card>
           <Card $delay={2}>
-            <h4>教育与科研支持</h4>
+            <h2>教育与科研支持</h2>
             <p>开放算力资源与行业工具包，支持高校与科研团队探索创新。</p>
           </Card>
         </Split>

@@ -115,15 +115,7 @@ test('sitemap 按 URL 排序、journal 附 lastmod、带 XML 声明', () => {
 test('robots.txt 规则与 sitemap 地址固定', () => {
   assert.equal(
     buildRobots(SITE),
-    [
-      'User-agent: *',
-      'Allow: /',
-      'Disallow: /*.dat',
-      'Disallow: /*_dump',
-      'Disallow: /*_energy',
-      'Sitemap: https://www.fusim.cn/sitemap.xml',
-      '',
-    ].join('\n'),
+    ['User-agent: *', 'Allow: /', 'Sitemap: https://www.fusim.cn/sitemap.xml', ''].join('\n'),
   )
 })
 

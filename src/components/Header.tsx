@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { styled } from 'styled-components'
 import { useLocation } from 'wouter'
 import { shouldHideHeader } from '../lib/header-visibility'
+import { currentPageAttr, isActivePath } from '../lib/nav'
 import {
   Brand,
   BrandLogo,
@@ -117,13 +118,15 @@ function useHeaderHidden() {
 export function Header() {
   const [open, setOpen] = useState(false)
   const [location] = useLocation()
-  const hidden = useHeaderHidden()
+  const scrolledHidden = useHeaderHidden()
+  // 仅主页在最上端时收起；其他页面始终显示
+  const hidden = location === '/' && scrolledHidden
 
-  /** 前缀匹配：/journal/xxx/ 也让「公司新闻」保持高亮。 */
-  const isActive = (href: string) => location.startsWith(href.replace(/\/$/, ''))
+  /** 前缀匹配：/journal/xxx/ 也让「公司新闻」保持高亮；点击后收起移动端菜单。 */
+  const isActive = (href: string) => isActivePath(location, href)
 
   return (
-    // 停在最上端时收起（展开的移动端菜单除外——此时需要看着菜单操作）
+    // 主页停在最上端时收起（展开的移动端菜单除外——此时需要看着菜单操作）
     <HeaderBar $hidden={hidden && !open}>
       {/* 布局放在内层：页头本身是命名容器，容器不能查询自己 */}
       <HeaderBarInner>
@@ -133,12 +136,22 @@ export function Header() {
 
         <Nav $open={open}>
           {NAV_ITEMS.map((item) => (
-            <NavLink key={item.href} href={item.href} $active={isActive(item.href)}>
+            <NavLink
+              key={item.href}
+              href={item.href}
+              $active={isActive(item.href)}
+              aria-current={currentPageAttr(location, item.href)}
+              onClick={() => setOpen(false)}
+            >
               {item.label}
             </NavLink>
           ))}
           <NavAnchor href="https://docs.fusim.cn/">产品文档</NavAnchor>
-          <NavCta href="/contact/" onClick={() => setOpen(false)}>
+          <NavCta
+            href="/contact/"
+            onClick={() => setOpen(false)}
+            aria-current={currentPageAttr(location, '/contact/')}
+          >
             预约合作
           </NavCta>
           <ThemeToggle placement="nav" />

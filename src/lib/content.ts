@@ -9,13 +9,20 @@ export type Frontmatter = {
   external_url?: string
   /** 历史字段（原 `service_*.md` 的宽版正文标记）。正文列现已统一为阅读宽度，渲染不再读取它。 */
   wide?: boolean
+  /** 产品所属分组（`saas` / `service`），首页按它取方案卡。 */
   product_section?: string
-  section_key?: string
   date?: string
 }
 
 /** 内容类型由所在目录决定，无需在 frontmatter 里重复声明。 */
-export type ContentKind = 'page' | 'product' | 'product_section' | 'journal'
+export type ContentKind = 'page' | 'product' | 'journal' | 'press'
+
+/** 带日期与来源的资讯类内容（公司新闻 / 社会报导），页头与 OG 均按文章处理。 */
+export const articleKinds: readonly ContentKind[] = ['journal', 'press']
+
+export function isArticleKind(kind: ContentKind): boolean {
+  return articleKinds.includes(kind)
+}
 
 export type ContentPage = {
   /** 站点路径，统一以 `/` 结尾（与 Lume 的 page.url 一致）。 */
@@ -60,7 +67,7 @@ function toKind(file: string): ContentKind {
   const path = relativePath(file)
 
   if (path.startsWith('journal/')) return 'journal'
-  if (path.startsWith('products/sections/')) return 'product_section'
+  if (path.startsWith('press/')) return 'press'
   if (path.startsWith('products/')) return 'product'
 
   return 'page'
@@ -78,10 +85,6 @@ export const contentPages: ContentPage[] = Object.entries(modules)
   .sort((a, b) => a.url.localeCompare(b.url))
 
 export const contentPageByUrl = new Map(contentPages.map((page) => [page.url, page]))
-
-export const productSections = contentPages
-  .filter((page) => page.kind === 'product_section')
-  .sort((a, b) => (a.frontmatter.order ?? 0) - (b.frontmatter.order ?? 0))
 
 export const products = contentPages
   .filter((page) => page.kind === 'product')

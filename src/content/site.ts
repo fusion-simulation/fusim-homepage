@@ -14,21 +14,19 @@ export const site = {
   email: 'info@fusim.cn',
   reports: [
     {
+      title: '聚核智算刘家兴博士荣获2026年度蔡诗东等离子体物理奖青年奖',
+      date: '2026-10-25',
+      url: '/press/wechat-liu-jiaxing-award/',
+    },
+    {
+      title: '如何破解核聚变工业软件“卡脖子”难题？“聚核智算”科研团队实现关键破局',
+      date: '2026-08-04',
+      url: '/press/wechat-fusion-software-breakthrough/',
+    },
+    {
       title: '助力中国"人造太阳"取得关键突破',
-      date: '2026-1-6',
-      url: 'https://mp.weixin.qq.com/s/slOB-55vjSeG8Gr73ctfpw',
-    },
-  ],
-  matrix: [
-    {
-      title: 'CBaldur',
-      desp: '1.5D 磁约束聚变集成模拟软件',
-      url: 'https://cbaldur.fusim.cn',
-    },
-    {
-      title: '更多',
-      desp: '敬请期待',
-      url: '#',
+      date: '2026-01-06',
+      url: '/press/wechat-ehl-density/',
     },
   ],
 } as const

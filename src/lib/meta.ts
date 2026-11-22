@@ -1,29 +1,31 @@
+import { metaDescription } from '../content/product-matrix'
 import { site } from '../content/site'
 import { contentPageByUrl } from './content'
-import { attachmentDirByUrl } from './publications'
 
 export type PageMeta = {
   title: string
   description: string
+  /** 未知路径（404）为 false：客户端不写 canonical，并标 noindex。 */
+  indexable: boolean
 }
 
 /** 与 Lume 各页面 frontmatter 中的 title / description 保持一致。 */
-const staticMeta: Record<string, PageMeta> = {
+const staticMeta: Record<string, Omit<PageMeta, 'indexable'>> = {
   '/': {
     title: '聚核智算 FUSIM',
     description: site.description,
   },
   '/about/': {
-    title: '企业介绍 | 聚核智算 FUSIM',
-    description: '聚核智算企业介绍、核心能力与服务架构。',
+    title: '关于我们 | 聚核智算 FUSIM',
+    description: '了解聚核智算的公司定位、聚变仿真产品、工程服务与技术工作流。',
   },
   '/contact/': {
     title: '预约合作 | 聚核智算 FUSIM',
     description: '聚核智算业务合作、方案咨询与媒体联络方式。',
   },
   '/journal/': {
-    title: '企业新闻 | 聚核智算 FUSIM',
-    description: '聚核智算企业日志列表，记录产品演进、技术洞察与行业观点。',
+    title: '公司新闻 | 聚核智算 FUSIM',
+    description: '聚核智算公司新闻列表，记录产品演进、技术洞察与行业观点。',
   },
   '/press/': {
     title: '社会报导 | 聚核智算 FUSIM',
@@ -31,7 +33,7 @@ const staticMeta: Record<string, PageMeta> = {
   },
   '/products/': {
     title: '产品矩阵 | 聚核智算 FUSIM',
-    description: '聚核智算产品矩阵，覆盖算力供给、平台管理与行业智能。',
+    description: metaDescription,
   },
   '/publications/': {
     title: '论文发表 | 聚核智算 FUSIM',
@@ -60,21 +62,17 @@ export function normalizePath(pathname: string): string {
 export function resolveMeta(pathname: string): PageMeta {
   const url = normalizePath(pathname)
 
-  const attachmentDir = attachmentDirByUrl.get(url)
-  if (attachmentDir) {
-    return {
-      title: `附件目录：${attachmentDir.name} | 聚核智算 FUSIM`,
-      description: site.description,
-    }
-  }
-
   const page = contentPageByUrl.get(url)
   if (page) {
     return {
       title: page.frontmatter.title ?? '聚核智算 FUSIM',
       description: page.frontmatter.description ?? site.description,
+      indexable: true,
     }
   }
 
-  return staticMeta[url] ?? { title: '404 | 聚核智算 FUSIM', description: site.description }
+  const known = staticMeta[url]
+  if (known) return { ...known, indexable: true }
+
+  return { title: '404 | 聚核智算 FUSIM', description: site.description, indexable: false }
 }

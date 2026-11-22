@@ -25,7 +25,6 @@ export function ContactPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Contact"
         title="预约合作"
         description="业务合作、方案咨询与媒体联络，欢迎与聚核智算聊聊。"
       />
@@ -34,7 +33,7 @@ export function ContactPage() {
         <CardGrid>
           {CHANNELS.map((channel, index) => (
             <Card key={channel.title} $delay={index + 1}>
-              <h4>{channel.title}</h4>
+              <h2>{channel.title}</h2>
               <p>{channel.desc}</p>
               <ButtonRow>
                 <BtnAnchor
@@ -50,7 +49,7 @@ export function ContactPage() {
 
         <Reveal>
           <Card $delay={4}>
-            <h4>直接联系</h4>
+            <h2>直接联系</h2>
             <p>
               邮箱：<a href={`mailto:${site.email}`}>{site.email}</a>
             </p>

@@ -111,7 +111,10 @@ export const Section = styled.section`
   gap: 32px;
   scroll-margin-top: 88px;
 
-  & h2 {
+  /* h1 只用于 404 这类「区块本身就是页面主体」的场景，与区块标题同款字号 */
+  & h1,
+  /* 只认 Section 自己的区块标题：卡片/条目里的 h2 有自己的样式，不该长出这条装饰线 */
+  & > h2 {
     font-size: clamp(1.8rem, 2.8vw, 2.4rem);
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -120,7 +123,8 @@ export const Section = styled.section`
     gap: 16px;
   }
 
-  & h2::before {
+  & h1::before,
+  & > h2::before {
     content: "";
     flex: none;
     width: 5px;
@@ -198,7 +202,9 @@ const cardCss = css`
     opacity: 1;
   }
 
-  & h4 {
+  /* 卡片标题的层级由调用方决定：区块级用 h2，条目级用 h3 */
+  & h2,
+  & h3 {
     margin-bottom: 10px;
     font-size: 1.15rem;
     letter-spacing: 0.02em;
@@ -399,6 +405,22 @@ export const ButtonIcon = styled(ExternalLinkIcon)`
 `
 
 /** 居中/留白用的按钮行（原 NotFoundPage 的内联 marginTop）。 */
+/**
+ * 视觉隐藏、读屏可见：`●/○`、颜色、图标这类不能当唯一载体的信息，
+ * 用它把等价的文字补给屏幕阅读器。
+ */
+export const SrOnly = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+`
+
 export const ButtonRow = styled.p`
   margin-top: 24px;
 `

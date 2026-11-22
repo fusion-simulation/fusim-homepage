@@ -1,0 +1,118 @@
+---
+title: "PPCF | 基于合成诊断数据增强的新装置无实验数据破裂预测方法"
+description: "团队提出基于三维磁流体模拟与合成诊断数据增强的跨装置破裂预测方法，成果发表于 PPCF。"
+date: 2026-10-16
+external_url: https://mp.weixin.qq.com/s/yeXV7iFtcqYoNMMpAqo6lg
+---
+
+import { ResponsiveImage } from '../../components/ResponsiveImage'
+
+## 聚核团队最新成果速览
+
+**Experiment-free disruption prediction for new devices enabled by synthetic diagnostic data augmentation**
+
+Plasma Physics and Controlled Fusion 第68卷 · 2026年 · 105011
+
+刘志强、薛凤鸣、薛世炜、郭笔豪、陈大龙、郑玮、朱平、J-TEXT team
+
+- 新一代托卡马克装置在初始运行阶段缺乏本装置破裂放电数据，而传统深度学习预测方法通常依赖大量历史样本。针对跨装置迁移时预测性能明显下降的问题，本文提出以三维磁流体数值模拟和合成诊断数据增强为核心的方法，通过生成目标装置的虚拟诊断信号，为破裂预测模型提供额外的物理信息。
+- 研究采用EAST实验数据训练TokaFormer双分支模型，结合NIMROD模拟、增强型合成诊断平台（ESDP）及跨域特征对齐方法，在1578次J-TEXT真实放电上进行验证。仅利用18组J-TEXT数值模拟算例，预测AUC便由0.524提升至0.613，平均破裂预警提前时间由0.02秒提升至0.17秒，显示出物理仿真辅助新装置破裂预测的应用潜力。
+
+- **模拟规模：** 18 组 J-TEXT 模拟算例
+- **预测 AUC：** 0.524 → 0.613
+- **平均预警提前时间：** 0.02 → 0.17 秒
+
+比较条件：仅用 EAST 实验数据训练，与加入 J-TEXT 合成诊断数据适配后比较；在 1578 次 J-TEXT 真实放电上验证。
+
+## 跨装置破裂预测总体框架
+
+<ResponsiveImage
+  src="/assets/press/wechat-ppcf-disruption-prediction/01.jpg"
+  alt="基于物理模拟与合成诊断数据增强的跨装置破裂预测总体框架"
+  width={1068}
+  height={1354}
+  displayWidth={720}
+  caption="FIG.1 基于物理模拟与合成诊断数据增强的跨装置破裂预测总体框架。"
+/>
+
+研究流程由源装置训练、目标装置合成诊断数据生成和跨域迁移三个阶段组成。首先基于EAST实验诊断信号训练预测模型；随后利用NIMROD开展J-TEXT三维磁流体模拟，通过ESDP将电子密度、温度、磁场等物理场转换为对应装置的诊断信号；最后结合信号和特征对齐，将模拟数据用于辅助模型适配，实现跨装置破裂预测。
+
+## 合成诊断信号的数据增强
+
+<ResponsiveImage
+  src="/assets/press/wechat-ppcf-disruption-prediction/02.jpg"
+  alt="三维磁流体模拟在不同环向角度对应的合成诊断信号随时间的演化"
+  width={1021}
+  height={1083}
+  displayWidth={720}
+  caption="FIG.2 三维磁流体模拟在不同环向角度（0°和30°）对应的合成诊断信号随时间的演化。"
+/>
+
+ESDP根据目标装置诊断系统的实际布置，将模拟结果转化为线积分电子密度、软X射线、Mirnov磁探针及等离子体宏观参数等时间序列。研究每隔30°提取一次环向位置的信号，使单组三维模拟算例可形成12组具有物理一致性、但存在一定差异的训练数据，从而提高有限模拟样本的利用效率。
+
+## 双分支模型提取破裂前兆
+
+<ResponsiveImage
+  src="/assets/press/wechat-ppcf-disruption-prediction/03.jpg"
+  alt="TokaFormer 双分支深度学习模型结构示意图"
+  width={997}
+  height={361}
+  displayWidth={720}
+  caption="FIG.4 TokaFormer 双分支深度学习模型结构示意图。"
+/>
+
+针对托卡马克诊断信号采样频率和物理含义不同的问题，TokaFormer分别设置电磁扰动分支与热平衡分支。前者提取Mirnov磁扰动信号中的不稳定性演化特征，后者融合软X射线、等离子体电流、环向磁场等宏观参数。模型通过卷积编码、Transformer和跨模态自监督预训练学习两类诊断信息之间的关联，以增强破裂前兆特征的表达能力。
+
+## 缩小模拟与实验的分布差异
+
+<ResponsiveImage
+  src="/assets/press/wechat-ppcf-disruption-prediction/04.jpg"
+  alt="采用傅里叶域适配前后合成诊断数据与实验诊断数据的特征分布对比"
+  width={1002}
+  height={1208}
+  displayWidth={720}
+  caption="FIG.6 采用傅里叶域适配（FDA）前后，合成诊断数据与实验诊断数据的特征分布对比。"
+/>
+
+理想化数值模拟与真实诊断之间存在噪声、带宽和仪器响应等差异，容易造成“模拟—实验”分布偏移。研究利用FDA调整合成信号的幅值谱，同时保留其相位信息，并结合相关对齐方法缩小特征统计差异。图中未经处理的合成样本形成相对独立的聚类，而经FDA处理后，其特征分布与目标装置实验数据更加接近。
+
+## 合成数据辅助跨装置预测
+
+<ResponsiveImage
+  src="/assets/press/wechat-ppcf-disruption-prediction/05.jpg"
+  alt="仅使用 EAST 实验数据、加入合成诊断数据、加入真实实验数据三种情形的 ROC 曲线比较"
+  width={995}
+  height={632}
+  displayWidth={720}
+  caption="FIG.7 仅使用 EAST 实验数据、加入 J-TEXT 合成诊断数据、加入 J-TEXT 真实实验数据三种情形的 ROC 曲线比较。"
+/>
+
+在1578次真实J-TEXT放电数据上的测试表明，模型未经目标装置数据适配时，AUC为0.524；加入18组J-TEXT磁流体模拟生成的合成诊断数据后，AUC提升至0.613。若改用同等数量的真实J-TEXT实验数据进行适配，AUC则达到0.709。由此可见，合成诊断数据能够有效补充目标装置信息，但当前仍不能完全替代真实实验测量。
+
+## 不同适配条件的性能对比
+
+<ResponsiveImage
+  src="/assets/press/wechat-ppcf-disruption-prediction/06.jpg"
+  alt="不同目标装置适配数据条件下跨装置破裂预测性能的定量比较"
+  width={1064}
+  height={196}
+  displayWidth={760}
+  caption="TAB.4 不同目标装置适配数据条件下，跨装置破裂预测性能的定量比较。"
+/>
+
+为保证比较公平，研究分别采用18组模拟算例与18次真实J-TEXT实验放电，均构建1548个长度为1毫秒的数据片段。相比不进行目标装置适配，合成诊断数据取得约48%的真实数据适配AUC增益；但其误报率仍为0.62，高于真实数据适配模型的0.13，说明模拟与实验之间尚存在需要继续缩小的差距。
+
+## 破裂预警提前时间的改善
+
+<ResponsiveImage
+  src="/assets/press/wechat-ppcf-disruption-prediction/07.jpg"
+  alt="三种模型的累计破裂预测比例随预警提前时间的变化"
+  width={1000}
+  height={608}
+  displayWidth={720}
+  caption="FIG.8 三种模型的累计破裂预测比例随预警提前时间的变化，竖直虚线表示 J-TEXT 破裂缓解系统的响应时间。"
+/>
+
+合成诊断数据的加入不仅提高了整体区分能力，也改善了预测时序表现。未经目标装置适配的模型平均预警提前时间约为0.02秒，加入合成诊断数据后提高至0.17秒，与真实实验数据适配模型的0.16秒处于相近水平。未来仍需扩充模拟算例及破裂物理情景，并改善合成诊断精度，以进一步降低误报、提升模型可靠性。
+
+**论文信息：** 刘志强、薛凤鸣、薛世炜、郭笔豪、陈大龙、郑玮、朱平、J-TEXT team，Plasma Physics and Controlled Fusion 68 (2026) 105011。**DOI：** 10.1088/1361-6587/aea7d3

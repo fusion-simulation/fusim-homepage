@@ -179,7 +179,7 @@ export const NavAnchor = styled.a<{ $active?: boolean }>`
 `
 
 /** 导航尾部 CTA：细描边胶囊，悬停点亮。 */
-export const NavCta = styled.a`
+export const NavCta = styled(Link)`
   padding: 9px 18px;
   border: 1px solid var(--line-strong);
   color: var(--text);
@@ -347,20 +347,24 @@ export const FooterLogo = styled.span`
   mask-size: contain;
 `
 
+/**
+ * 页脚栏目名：视觉上是小号标签，语义上不是文档标题（`FooterCol` 已用 aria-label
+ * 描述导航）。用 span 而不是 h4，阅读器的大纲里就不会多出六个假的二级标题。
+ */
+export const FooterColTitle = styled.span`
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+`
+
 export const FooterCol = styled.nav`
   display: grid;
   gap: 12px;
   align-content: start;
-
-  & h4 {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.26em;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
 
   & a {
     color: var(--text-muted);

@@ -1,7 +1,8 @@
+import { Link } from 'wouter'
 import { TokamakScene } from '../components/TokamakScene'
 import { site } from '../content/site'
 import type { ContentPage } from '../lib/content'
-import { productsOfSection } from '../lib/content'
+import { journalPages, productsOfSection } from '../lib/content'
 import {
   HeroActions,
   HeroBackdrop,
@@ -28,6 +29,7 @@ import {
   FlowHead,
   FlowStep,
   FlowSteps,
+  NewsMore,
   PartnerBand,
   PartnerGroup,
   PartnerItem,
@@ -48,6 +50,7 @@ import {
   VerifyGrid,
   VerifyValue,
 } from '../styles/home'
+import { DateMono, PostCard, PostFoot, PostGrid, ReadMore } from '../styles/hub'
 import {
   Band,
   BtnAnchor,
@@ -205,7 +208,7 @@ function ProductCard({ product }: { product: ContentPage }) {
 
   return (
     <CardLink href={product.url} $delay={1}>
-      <h4>{frontmatter.title}</h4>
+      <h3>{frontmatter.title}</h3>
       {description ? <p>{description}</p> : null}
     </CardLink>
   )
@@ -445,6 +448,40 @@ export function HomePage() {
               </VerifyCard>
             ))}
           </VerifyGrid>
+        </Shell>
+      </Band>
+
+      {/* ---------- 最新动态 ---------- */}
+      <Band id="news" $hairline>
+        <Shell>
+          <SectionHead>
+            <Eyebrow>NEWSROOM</Eyebrow>
+            <h2>最新动态</h2>
+            <p>会议交流、研究进展与团队新闻，了解聚核智算正在发生什么。</p>
+          </SectionHead>
+
+          <PostGrid>
+            {journalPages.slice(0, 3).map((post: ContentPage, index: number) => (
+              <PostCard key={post.url} $delay={index % 3}>
+                <DateMono>{post.frontmatter.date}</DateMono>
+                <h3>
+                  <Link href={post.url}>{post.frontmatter.title}</Link>
+                </h3>
+                {post.frontmatter.description ? <p>{post.frontmatter.description}</p> : null}
+                <PostFoot>
+                  <span />
+                  <ReadMore>阅读 →</ReadMore>
+                </PostFoot>
+              </PostCard>
+            ))}
+          </PostGrid>
+
+          <NewsMore>
+            <BtnLink href="/journal/" $variant="light">
+              查看全部公司新闻
+              <ButtonIcon />
+            </BtnLink>
+          </NewsMore>
         </Shell>
       </Band>
 

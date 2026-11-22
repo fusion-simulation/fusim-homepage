@@ -2,7 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildResponsiveSrcSet,
+  figureSlotWidth,
+  IMAGE_SLOT_WIDTH,
   IMAGE_VARIANT_WIDTHS,
+  imageSizes,
   imageVariantUrl,
   responsiveImageAttributes,
 } from '../src/lib/responsive-image.ts'
@@ -73,15 +76,26 @@ test('buildResponsiveSrcSet：候选 URL 带 query/hash 时逐个保留', () => 
   )
 })
 
-test('responsiveImageAttributes：lazy + auto sizes + async decoding', () => {
+test('responsiveImageAttributes：lazy + 槽位 sizes + async decoding', () => {
   assert.deepEqual(responsiveImageAttributes('/assets/image/banana.webp', 1000), {
     src: '/assets/image/banana.webp',
     srcSet:
       '/assets/image/banana-480.webp 480w, /assets/image/banana-800.webp 800w, /assets/image/banana.webp 1000w',
-    sizes: 'auto, 100vw',
+    sizes: '(min-width: 1000px) 860px, 86vw',
     loading: 'lazy',
     decoding: 'async',
   })
+})
+
+test('imageSizes：槽位取阅读列上限，小图用自己的固有宽度', () => {
+  assert.equal(IMAGE_SLOT_WIDTH, 860)
+  assert.equal(imageSizes(1280), '(min-width: 1000px) 860px, 86vw')
+  assert.equal(imageSizes(499), '(min-width: 580px) 499px, 86vw')
+  assert.equal(imageSizes(2100, 1200), '(min-width: 1395px) 1200px, 86vw')
+})
+
+test('imageSizes：不再出现 auto —— 列表里的 auto 会让整条 sizes 失效回落 100vw', () => {
+  assert.equal(/auto/.test(imageSizes(1280)), false)
 })
 
 test('responsiveImageAttributes：非 .webp 源图（构建期整组放弃）不拼 srcSet', () => {
@@ -90,4 +104,22 @@ test('responsiveImageAttributes：非 .webp 源图（构建期整组放弃）不
     loading: 'lazy',
     decoding: 'async',
   })
+})
+
+test('figureSlotWidth：展示上限优先，再夹到阅读列', () => {
+  // 大图：槽位被阅读列截住
+  assert.equal(figureSlotWidth(1280), IMAGE_SLOT_WIDTH)
+  // 正文里限宽的小图：按自己的展示上限取
+  assert.equal(figureSlotWidth(936, 720), 720)
+  // displayWidth 比固有宽度还大时不放大
+  assert.equal(figureSlotWidth(499, 1200), 499)
+  // 其他阅读列（如宽版正文）照样生效
+  assert.equal(figureSlotWidth(1280, undefined, 1200), 1200)
+})
+
+test('responsiveImageAttributes：sizes 用展示上限，不虚报整列宽度', () => {
+  assert.equal(
+    responsiveImageAttributes('/a.webp', 936, 720).sizes,
+    '(min-width: 837px) 720px, 86vw',
+  )
 })

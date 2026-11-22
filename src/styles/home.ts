@@ -561,3 +561,10 @@ export const CtaActions = styled.div`
   flex-wrap: wrap;
   gap: 16px;
 `
+
+/** 首页「最新动态」区底部的查看全部入口。 */
+export const NewsMore = styled.div`
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+`
