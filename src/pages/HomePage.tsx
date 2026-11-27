@@ -76,7 +76,6 @@ const heroStats = [
 /* ---------- 合作单位（依托 + 合作，来自 BP 公开信息） ---------- */
 
 const partners = [
-  { name: '华中科技大学聚变与等离子体研究所', role: '依托单位' },
   { name: '中国科学院等离子体物理研究所', role: '合作' },
   { name: '华为', role: '算力合作' },
   { name: '星能玄光', role: '合作' },
@@ -90,7 +89,7 @@ const techs = [
     no: '01',
     kicker: '算得快',
     sub: '自主求解器 × 国产异构算力',
-    desc: '自主研发全系列聚变求解器，深度适配国产异构算力，典型算例最高加速 2.0×，解决「算不快、受制于人」。',
+    desc: '自主研发全系列聚变求解器，深度适配国产异构算力，解决「算不快、受制于人」。',
     points: [
       '平衡 / 磁流体 / 输运 / 粒子 / 壁面全系列求解器',
       '国产异构算力深度优化',
@@ -103,7 +102,7 @@ const techs = [
     kicker: '算得准',
     sub: '聚变专用物理模型 + 多物理场耦合',
     desc: '聚变专用物理模型矩阵与多物理场耦合显著提升结果可靠度，仿真与实验的关键指标一致。',
-    points: ['平衡 / 输运 / 加热 / 壁面 / 破裂专用模型', '多物理场自洽耦合', '中科院合作实验验证'],
+    points: ['平衡 / 输运 / 加热 / 壁面 / 破裂专用模型', '多物理场自洽耦合', '多聚变装置实验验证'],
     featured: false,
   },
   {
@@ -282,9 +281,6 @@ export function HomePage() {
           <SectionHead>
             <Eyebrow>CORE TECHNOLOGY</Eyebrow>
             <h2>一个平台，三重突破</h2>
-            <p>
-              算得快、算得准、用得简单——聚核智算用三条技术主线，把聚变仿真从科研奢侈品变成工程生产力。
-            </p>
           </SectionHead>
 
           <TechGrid>
@@ -337,7 +333,7 @@ export function HomePage() {
 
             <FlowCol $new>
               <FlowHead $new>
-                <strong>CBaldur 工作流</strong>
+                <strong>FUSIM 仿真平台</strong>
                 <span>AGENT-DRIVEN</span>
               </FlowHead>
               <FlowSteps>
@@ -351,10 +347,7 @@ export function HomePage() {
             </FlowCol>
           </FlowGrid>
 
-          <FlowBanner $delay={2}>
-            以小时计的传统准备流程，压缩到分钟级——
-            <strong>节省用户 60%+ 时间</strong>
-          </FlowBanner>
+          <FlowBanner $delay={2}>以小时计的传统准备流程，压缩到分钟级——</FlowBanner>
         </Shell>
       </Band>
 

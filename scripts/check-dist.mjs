@@ -122,7 +122,7 @@ for (const file of files) {
     fail(label, `多个导航项都指向本页：${owning.map((link) => link.href).join(', ')}`)
   } else if (owning.length === 1) {
     const { href, tag } = owning[0]
-    // 本级页面用 page，只是祖先路径用 true（详情页里的「公司新闻」不是当前页）
+    // 本级页面用 page，只是祖先路径用 true（详情页里的「企业动态」不是当前页）
     const expected = currentPageAttr(path, href)
     const actual = tag.match(/aria-current="([a-z]+)"/)?.[1]
 
