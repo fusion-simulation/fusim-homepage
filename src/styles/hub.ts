@@ -4,7 +4,7 @@ import { type RevealProps, reveal } from './animation'
 import { containers, fromContainer } from './responsive'
 
 /**
- * 列表类内页（论文 / 公司新闻 / 报道）共用的「暗色科研仪表盘」版式：
+ * 列表类内页（论文 / 企业动态 / 报道）共用的「暗色科研仪表盘」版式：
  * 等宽编号、角标框线、数据统计条、发丝线时间轴。全部取自站点既有 token，不引入新色值。
  */
 
@@ -262,7 +262,7 @@ export const PubAction = styled.a`
   }
 `
 
-/* ---------- 公司新闻：精选 + 网格 ---------- */
+/* ---------- 企业动态：精选 + 网格 ---------- */
 
 export const JournalFeature = styled.article<RevealProps>`
   ${reveal}
@@ -525,6 +525,87 @@ export const PressHint = styled.span`
   font-size: 0.78rem;
   letter-spacing: 0.12em;
   color: var(--text-muted);
+`
+
+/* ---------- 企业动态合并列表：标签筛选 + 卡片 ---------- */
+
+/** 标签筛选行的容器（`role="group"`，靠 aria-label 说明它筛的是什么）。 */
+export const TagBar = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+`
+
+/**
+ * 标签按钮：必须是 `<button>` 而不是 `<a>`——它是筛选而不是导航，
+ * 要能键盘操作、能带 `aria-pressed`。`$active` 只改外观，不改尺寸，避免筛选时布局跳动。
+ */
+export const TagButton = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid
+    ${({ $active }) => ($active ? 'var(--accent)' : 'var(--line)')};
+  background: ${({ $active }) =>
+    $active ? 'rgba(var(--accent-rgb), 0.14)' : 'var(--surface-translucent)'};
+  color: ${({ $active }) => ($active ? 'var(--accent-ink)' : 'var(--text-muted)')};
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+`
+
+/** 标签后的篇数，比标签本体淡一档。 */
+export const TagCount = styled.span`
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+`
+
+/** 卡片内的标签行。 */
+export const TagRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`
+
+/** 合并列表的卡片：站内文章，所以是 `<article>` + 标题内链接，而不是整块 `<a>`（标签按钮不能嵌在链接里）。 */
+export const NewsCard = styled.article<RevealProps>`
+  ${pressCardCss}
+  ${reducedMotion}
+
+  & h2 a {
+    color: var(--text);
+    transition: color 0.2s ease;
+  }
+
+  & h2 a:hover {
+    color: var(--accent-ink);
+  }
+
+  & p {
+    color: var(--text-muted);
+    line-height: 1.75;
+    font-size: 0.95rem;
+  }
 `
 
 /* ---------- 空态 ---------- */
