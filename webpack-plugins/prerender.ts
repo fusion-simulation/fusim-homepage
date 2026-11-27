@@ -21,7 +21,7 @@ export type PageSeo = {
   title: string
   description: string
   ogType: 'website' | 'article'
-  /** journal 详情的 frontmatter.date（YYYY-MM-DD） */
+  /** 资讯详情的 frontmatter.date（YYYY-MM-DD） */
   date?: string
   /** 404 页：只注入 noindex，不进 sitemap、不写 canonical / OG / JSON-LD */
   notFound?: boolean

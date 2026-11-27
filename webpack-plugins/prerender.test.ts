@@ -63,11 +63,11 @@ test('首页 JSON-LD 含 Organization 与 WebSite', () => {
   assert.equal(graph[1].inLanguage, 'zh-CN')
 })
 
-test('journal 详情 JSON-LD 追加 Article（带 datePublished 与 canonical）', () => {
+test('press 详情 JSON-LD 追加 Article（带 datePublished 与 canonical）', () => {
   const graph = parseJsonLd(
     buildJsonLd(
       {
-        url: '/journal/hello/',
+        url: '/press/hello/',
         title: '第一篇日志',
         description: '摘要',
         ogType: 'article',
@@ -81,7 +81,7 @@ test('journal 详情 JSON-LD 追加 Article（带 datePublished 与 canonical）
   assert.equal(article.headline, '第一篇日志')
   assert.equal(article.image, SITE.ogImage)
   assert.equal(article.datePublished, '2026-10-01')
-  assert.equal(article.mainEntityOfPage, 'https://www.fusim.cn/journal/hello/')
+  assert.equal(article.mainEntityOfPage, 'https://www.fusim.cn/press/hello/')
   assert.equal((article.author as Record<string, unknown>)['@type'], 'Organization')
 })
 
@@ -91,12 +91,12 @@ test('JSON-LD 把 < 转成 \\u003c，</script> 不会截断脚本', () => {
   assert.equal(parseJsonLd(html)['@graph'][0]['@type'], 'Organization')
 })
 
-test('sitemap 按 URL 排序、journal 附 lastmod、带 XML 声明', () => {
+test('sitemap 按 URL 排序、press 附 lastmod、带 XML 声明', () => {
   const xml = buildSitemap(
     [
       { url: '/products/', title: 't', description: 'd', ogType: 'website' },
       HOME,
-      { url: '/journal/a/', title: 't', description: 'd', ogType: 'article', date: '2026-10-01' },
+      { url: '/press/a/', title: 't', description: 'd', ogType: 'article', date: '2026-10-01' },
     ],
     SITE,
   )
@@ -105,7 +105,7 @@ test('sitemap 按 URL 排序、journal 附 lastmod、带 XML 声明', () => {
   const locs = [...xml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((match) => match[1])
   assert.deepEqual(locs, [
     'https://www.fusim.cn/',
-    'https://www.fusim.cn/journal/a/',
+    'https://www.fusim.cn/press/a/',
     'https://www.fusim.cn/products/',
   ])
   assert.equal([...xml.matchAll(/<lastmod>/g)].length, 1, '只有带日期的条目写 lastmod')

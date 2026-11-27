@@ -35,10 +35,10 @@ test('404 删除 canonical 并写 noindex', () => {
 })
 
 test('canonical 不由路径拼接决定拼接方式：站点源带与不带尾斜杠都得到同一个地址', () => {
-  const base = { title: 't', description: 'd', url: '/journal/x/', indexable: true }
-  assert.equal(metaTagPlan({ ...base, siteUrl }).canonical, 'https://www.fusim.cn/journal/x/')
+  const base = { title: 't', description: 'd', url: '/press/x/', indexable: true }
+  assert.equal(metaTagPlan({ ...base, siteUrl }).canonical, 'https://www.fusim.cn/press/x/')
   assert.equal(
     metaTagPlan({ ...base, siteUrl: 'https://www.fusim.cn/' }).canonical,
-    'https://www.fusim.cn/journal/x/',
+    'https://www.fusim.cn/press/x/',
   )
 })

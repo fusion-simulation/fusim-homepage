@@ -13,7 +13,7 @@ function trimPath(path: string): string {
 
 /**
  * `href` 是否是当前路径对应的导航项。
- * 首页（`/`）只在根路径激活；其余路径连同其子路径都算激活（`/journal/x/` → `/journal/`）。
+ * 首页（`/`）只在根路径激活；其余路径连同其子路径都算激活（`/press/x/` → `/press/`）。
  */
 export function isActivePath(location: string, href: string): boolean {
   const root = trimPath(href)
@@ -26,7 +26,7 @@ export function isActivePath(location: string, href: string): boolean {
 
 /**
  * 导航项的 `aria-current` 取值：本级页面用 `page`，只是祖先路径用 `true`。
- * 详情页（`/journal/x/`）里「公司新闻」不是当前页，读屏不该说成「当前页面」。
+ * 详情页（`/press/x/`）里「企业动态」不是当前页，读屏不该说成「当前页面」。
  */
 export function currentPageAttr(location: string, href: string): 'page' | 'true' | undefined {
   if (!isActivePath(location, href)) return undefined
