@@ -23,13 +23,9 @@ const staticMeta: Record<string, Omit<PageMeta, 'indexable'>> = {
     title: '预约合作 | 聚核智算 FUSIM',
     description: '聚核智算业务合作、方案咨询与媒体联络方式。',
   },
-  '/journal/': {
-    title: '公司新闻 | 聚核智算 FUSIM',
-    description: '聚核智算公司新闻列表，记录产品演进、技术洞察与行业观点。',
-  },
   '/press/': {
-    title: '社会报导 | 聚核智算 FUSIM',
-    description: '聚核智算媒体报导与社会关注。',
+    title: '企业动态 | 聚核智算 FUSIM',
+    description: '聚核智算企业动态：科研进展、会议交流、荣誉奖项与媒体报道。',
   },
   '/products/': {
     title: '产品矩阵 | 聚核智算 FUSIM',

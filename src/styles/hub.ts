@@ -1,5 +1,4 @@
 import { css, styled } from 'styled-components'
-import { Link } from 'wouter'
 import { type RevealProps, reveal } from './animation'
 import { containers, fromContainer } from './responsive'
 
@@ -262,77 +261,7 @@ export const PubAction = styled.a`
   }
 `
 
-/* ---------- 企业动态：精选 + 网格 ---------- */
-
-export const JournalFeature = styled.article<RevealProps>`
-  ${reveal}
-  ${corners}
-  position: relative;
-  display: grid;
-  gap: 18px;
-  padding: clamp(28px, 4vw, 44px);
-  background:
-    radial-gradient(640px 280px at 100% 0%, rgba(var(--accent-rgb), 0.12), transparent 70%),
-    var(--bg-card);
-  border: 1px solid rgba(var(--accent-rgb), 0.32);
-  box-shadow: 0 0 44px rgba(var(--accent-rgb), 0.08);
-
-  ${reducedMotion}
-
-  /* 精选标题是真正的区块标题：保留 Section 那条 5px 渐变线的观感（原先由 Section 提供） */
-  & h2 {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: clamp(1.7rem, 3vw, 2.4rem);
-    font-weight: 700;
-    line-height: 1.3;
-    letter-spacing: 0.02em;
-  }
-
-  & h2::before {
-    content: "";
-    flex: none;
-    width: 5px;
-    height: 0.9em;
-    background: linear-gradient(180deg, var(--accent), var(--accent-deep));
-  }
-
-  & h2 a {
-    color: var(--text);
-  }
-
-  & h2 a:hover {
-    color: var(--accent-ink);
-  }
-
-  & p {
-    color: var(--text-muted);
-    line-height: 1.85;
-    font-size: 1.05rem;
-    max-width: 720px;
-  }
-`
-
-export const FeatureLabel = styled.p`
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.22em;
-  color: var(--accent-ink);
-  text-transform: uppercase;
-
-  &::before {
-    content: '';
-    width: 7px;
-    height: 7px;
-    transform: rotate(45deg);
-    background: var(--accent);
-    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.6);
-  }
-`
+/* ---------- 企业动态：网格（首页「最新动态」也在用） ---------- */
 
 export const PostGrid = styled.div`
   display: grid;
@@ -415,7 +344,7 @@ export const DateMono = styled.span`
   color: var(--accent-ink);
 `
 
-/* ---------- 报道：发丝时间轴 ---------- */
+/* ---------- 企业动态：发丝时间轴 ---------- */
 
 export const Timeline = styled.ol`
   list-style: none;
@@ -458,7 +387,7 @@ export const TimelineEntry = styled.li<RevealProps>`
   ${reducedMotion}
 `
 
-/** 社会报导卡片的外形：内链与外链只差基座元素，共用这一份样式。 */
+/** 企业动态列表卡片的外形：标题、摘要、角框与 hover 位移都出自这一份。 */
 const pressCardCss = css`
   ${corners}
   position: relative;
@@ -493,41 +422,7 @@ const pressCardCss = css`
   }
 `
 
-/** 站内专题：走 wouter，不整页刷新。 */
-export const PressCardLink = styled(Link)`
-  ${pressCardCss}
-`
-
-/** 外部报导：新窗口打开。 */
-export const PressCardAnchor = styled.a`
-  ${pressCardCss}
-`
-
-export const PressSource = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
-  color: var(--accent-ink);
-
-  & svg {
-    width: 14px;
-    height: 14px;
-    display: block;
-  }
-`
-
-export const PressHint = styled.span`
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-`
-
-/* ---------- 企业动态合并列表：标签筛选 + 卡片 ---------- */
+/* ---------- 企业动态：标签筛选 + 列表卡片 ---------- */
 
 /** 标签筛选行的容器（`role="group"`，靠 aria-label 说明它筛的是什么）。 */
 export const TagBar = styled.div`

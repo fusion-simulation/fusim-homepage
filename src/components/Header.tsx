@@ -71,9 +71,8 @@ function ThemeToggle({ placement }: { placement: 'nav' | 'mobile' }) {
 
 const NAV_ITEMS = [
   { href: '/products/', label: '产品矩阵' },
-  { href: '/publications/', label: '论文发表' },
-  { href: '/journal/', label: '公司新闻' },
-  { href: '/press/', label: '社会报导' },
+  // { href: '/publications/', label: '论文发表' },
+  { href: '/press/', label: '企业动态' },
   { href: '/about/', label: '关于我们' },
 ] as const
 
@@ -122,7 +121,7 @@ export function Header() {
   // 仅主页在最上端时收起；其他页面始终显示
   const hidden = location === '/' && scrolledHidden
 
-  /** 前缀匹配：/journal/xxx/ 也让「公司新闻」保持高亮；点击后收起移动端菜单。 */
+  /** 前缀匹配：/press/xxx/ 也让「企业动态」保持高亮；点击后收起移动端菜单。 */
   const isActive = (href: string) => isActivePath(location, href)
 
   return (

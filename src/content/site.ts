@@ -12,21 +12,4 @@ export const site = {
   icp: '鄂ICP备2025165543号-1',
   mps: '鄂公网安备42018502008408号',
   email: 'info@fusim.cn',
-  reports: [
-    {
-      title: '聚核智算刘家兴博士荣获2026年度蔡诗东等离子体物理奖青年奖',
-      date: '2026-10-25',
-      url: '/press/wechat-liu-jiaxing-award/',
-    },
-    {
-      title: '如何破解核聚变工业软件“卡脖子”难题？“聚核智算”科研团队实现关键破局',
-      date: '2026-08-04',
-      url: '/press/wechat-fusion-software-breakthrough/',
-    },
-    {
-      title: '助力中国"人造太阳"取得关键突破',
-      date: '2026-01-06',
-      url: '/press/wechat-ehl-density/',
-    },
-  ],
 } as const

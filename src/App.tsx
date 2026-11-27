@@ -7,7 +7,6 @@ import { useScrollToTop } from './lib/useScrollToTop'
 import { AboutPage } from './pages/AboutPage'
 import { ContactPage } from './pages/ContactPage'
 import { HomePage } from './pages/HomePage'
-import { JournalPage } from './pages/JournalPage'
 import { MdxPage } from './pages/MdxPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PressPage } from './pages/PressPage'
@@ -15,7 +14,7 @@ import { ProductsPage } from './pages/ProductsPage'
 import { PublicationsPage } from './pages/PublicationsPage'
 import { ResponsibilityPage } from './pages/ResponsibilityPage'
 
-/** 所有 MDX 内容页（产品、论文、公司新闻…）共用同一个路由。 */
+/** 所有 MDX 内容页（产品、论文、企业动态…）共用同一个路由。 */
 function ContentRoute() {
   const [location] = useLocation()
   const page = contentPageByUrl.get(normalizePath(location))
@@ -36,7 +35,6 @@ export function App() {
         <Route path="/" component={HomePage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/contact" component={ContactPage} />
-        <Route path="/journal" component={JournalPage} />
         <Route path="/press" component={PressPage} />
         <Route path="/products" component={ProductsPage} />
         <Route path="/publications" component={PublicationsPage} />

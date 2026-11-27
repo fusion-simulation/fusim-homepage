@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { type Tagged, collectTags, filterByTag, parseTag } from '../src/lib/tags.ts'
+import { collectTags, filterByTag, parseTag, type Tagged } from '../src/lib/tags.ts'
 
 /** 最小夹具：只带 tags，够纯函数用，不必造整个 ContentPage。 */
-const tagged = (groups: string[][]): Tagged[] =>
-  groups.map((tags) => ({ frontmatter: { tags } }))
+const tagged = (groups: string[][]): Tagged[] => groups.map((tags) => ({ frontmatter: { tags } }))
 
 test('collectTags：按篇数降序，同数保持首次出现顺序', () => {
   const pages = tagged([['科研进展'], ['会议交流', '科研进展'], ['会议交流']])

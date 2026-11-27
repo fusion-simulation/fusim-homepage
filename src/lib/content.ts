@@ -12,13 +12,15 @@ export type Frontmatter = {
   /** 产品所属分组（`saas` / `service`），首页按它取方案卡。 */
   product_section?: string
   date?: string
+  /** 列表页标签筛选与卡片标签行用；词表见 README。 */
+  tags?: string[]
 }
 
 /** 内容类型由所在目录决定，无需在 frontmatter 里重复声明。 */
-export type ContentKind = 'page' | 'product' | 'journal' | 'press'
+export type ContentKind = 'page' | 'product' | 'press'
 
-/** 带日期与来源的资讯类内容（公司新闻 / 社会报导），页头与 OG 均按文章处理。 */
-export const articleKinds: readonly ContentKind[] = ['journal', 'press']
+/** 带日期与来源的资讯类内容（企业动态），页头与 OG 均按文章处理。 */
+export const articleKinds: readonly ContentKind[] = ['press']
 
 export function isArticleKind(kind: ContentKind): boolean {
   return articleKinds.includes(kind)
@@ -66,14 +68,13 @@ function toUrl(file: string): string {
 function toKind(file: string): ContentKind {
   const path = relativePath(file)
 
-  if (path.startsWith('journal/')) return 'journal'
   if (path.startsWith('press/')) return 'press'
   if (path.startsWith('products/')) return 'product'
 
   return 'page'
 }
 
-/** 所有 MDX 内容页（products / journal / ...）。 */
+/** 所有 MDX 内容页（products / press / ...）。 */
 export const contentPages: ContentPage[] = Object.entries(modules)
   .map(([file, mod]) => ({
     url: toUrl(file),
@@ -94,6 +95,7 @@ export function productsOfSection(sectionKey: string | undefined): ContentPage[]
   return products.filter((page) => page.frontmatter.product_section === sectionKey)
 }
 
-export const journalPages = contentPages
-  .filter((page) => page.kind === 'journal')
+/** 企业动态列表：`src/content/press/` 全部文章，按日期倒序。 */
+export const newsPages = contentPages
+  .filter((page) => page.kind === 'press')
   .sort((a, b) => (b.frontmatter.date ?? '').localeCompare(a.frontmatter.date ?? ''))

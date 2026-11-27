@@ -2,7 +2,7 @@ import { Link } from 'wouter'
 import { TokamakScene } from '../components/TokamakScene'
 import { site } from '../content/site'
 import type { ContentPage } from '../lib/content'
-import { journalPages, productsOfSection } from '../lib/content'
+import { newsPages, productsOfSection } from '../lib/content'
 import {
   HeroActions,
   HeroBackdrop,
@@ -461,7 +461,7 @@ export function HomePage() {
           </SectionHead>
 
           <PostGrid>
-            {journalPages.slice(0, 3).map((post: ContentPage, index: number) => (
+            {newsPages.slice(0, 3).map((post: ContentPage, index: number) => (
               <PostCard key={post.url} $delay={index % 3}>
                 <DateMono>{post.frontmatter.date}</DateMono>
                 <h3>
@@ -477,8 +477,8 @@ export function HomePage() {
           </PostGrid>
 
           <NewsMore>
-            <BtnLink href="/journal/" $variant="light">
-              查看全部公司新闻
+            <BtnLink href="/press/" $variant="light">
+              查看全部企业动态
               <ButtonIcon />
             </BtnLink>
           </NewsMore>

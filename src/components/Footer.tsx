@@ -17,9 +17,8 @@ const copyright = `© ${SINCE}${currentYear > SINCE ? `–${currentYear}` : ''} 
 
 const SiteLinks = [
   { href: '/products/', label: '产品矩阵' },
-  { href: '/publications/', label: '论文发表' },
-  { href: '/journal/', label: '公司新闻' },
-  { href: '/press/', label: '社会报导' },
+  // { href: '/publications/', label: '论文发表' },
+  { href: '/press/', label: '企业动态' },
   { href: '/about/', label: '关于我们' },
   { href: '/responsibility/', label: '企业责任' },
 ]
