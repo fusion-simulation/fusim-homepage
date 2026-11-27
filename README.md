@@ -1,6 +1,6 @@
 # 聚核智算 FUSIM 官网
 
-基于 **React 19 + wouter + styled-components + MDX** 重写的 FUSIM 企业门户，内容与页面结构对齐原 Lume 站点（`fusim-homepage/`）：首页、公司新闻、社会报导、产品矩阵、论文发表、关于我们、企业责任。
+基于 **React 19 + wouter + styled-components + MDX** 重写的 FUSIM 企业门户，内容与页面结构对齐原 Lume 站点（`fusim-homepage/`）：首页、企业动态、产品矩阵、论文发表、关于我们、企业责任。
 
 ## 技术栈
 
@@ -118,7 +118,7 @@ public/assets/              # 图片、论文 PDF 等静态资源
   | --- | --- |
   | `products/*.mdx` | 产品页（prose + 卡片） |
   | `products/sections/*.mdx` | 产品分组（列表页区块，也可独立访问） |
-  | `journal/*.mdx` | 公司新闻列表 + 详情页 |
+  | `press/*.mdx` | 企业动态列表 + 详情页 |
   | 其他目录 | 普通正文页 |
 
 - **frontmatter 字段**（只保留真正会用到的）：
@@ -133,24 +133,31 @@ public/assets/              # 图片、论文 PDF 等静态资源
   | `product_section` | 产品所属分组（对应分组的 `section_key`） |
   | `section_key` | 分组键，同时用作锚点 id |
   | `wide` | 宽版正文（2400px，对应原 `<style>` 覆盖） |
-  | `date` | 公司新闻日期（列表倒序、详情页展示） |
+  | `date` | 企业动态日期（列表倒序、详情页展示） |
+  | `tags` | 企业动态标签（列表页标签筛选与卡片标签行） |
 
-- **公司新闻**：在 `src/content/journal/` 新增 `.mdx` 即可，列表与详情页会自动生成：
+- **企业动态**：在 `src/content/press/` 新增 `.mdx` 即可，列表与详情页会自动生成（无需在任何地方再登记一份清单）：
 
   ```mdx
   ---
   title: 新闻标题
   description: 新闻摘要
   date: 2026-01-06
+  tags: [科研进展, 媒体报道]
+  external_url: https://mp.weixin.qq.com/s/…
   ---
   ```
+
+  标签词表（每篇 1–2 个，新词先想清楚能不能归到现有词里）：
+  `科研进展` / `会议交流` / `荣誉奖项` / `融资合作` / `媒体报道` / `技术洞察`。
+  列表页 `/press/` 可按标签筛选，筛选态写在地址栏（`/press/?tag=会议交流`），可以直接转发。
 
 - **论文**：把 PDF 放到 `public/assets/pub/<年份>/<条目>/`。构建期会自动以目录中的第一个 PDF
   作为论文条目（标题取文件名）。论文页面只展示 PDF 本身，不带附件。
 
   所以请**先放文件、再构建**（`npm run dev` 时新增/删除 PDF 会自动刷新）。
 
-- **页头 / 页脚 / 备案号 / 社会报导**：`src/content/site.ts`。
+- **页头 / 页脚 / 备案号**：`src/content/site.ts`。
 
 ## 实现说明
 
@@ -205,11 +212,11 @@ public/assets/              # 图片、论文 PDF 等静态资源
   预渲染、客户端导航（`useDocumentMeta`）、`sitemap.xml`、`robots.txt` 与 JSON-LD 都从它拼绝对地址。
 - **每页 meta**：预渲染时往壳里写入 `<link rel="canonical">`、Open Graph（`og:site_name` / `type` /
   `url` / `title` / `description` / `image` / `locale`）、Twitter Card（`summary_large_image`）与 JSON-LD。
-  JSON-LD 每页都带 `Organization`，首页加 `WebSite`，journal 详情（`og:type=article`）加 `Article`；
+  JSON-LD 每页都带 `Organization`，首页加 `WebSite`，企业动态详情（`og:type=article`）加 `Article`；
   `404.html` 只写 `noindex`，不写 canonical / OG / JSON-LD，也不进 sitemap。
   客户端路由切换时 `useDocumentMeta` 同步 title / description / canonical，不会停在首次进入的那一页。
 - **`robots.txt`**：允许全站，末尾指向 `sitemap.xml`。
-- **`sitemap.xml`**：构建时按全部预渲染路由生成，journal 详情带 frontmatter 的 `date` 作为 `lastmod`。
+- **`sitemap.xml`**：构建时按全部预渲染路由生成，企业动态详情带 frontmatter 的 `date` 作为 `lastmod`。
 - **社交分享图与 logo**：`public/og-image.png` 与 `public/logos/fusim-logo-512.png` 在
   `webpack.config.mjs` 的 `PASSTHROUGH_IMAGE_URLS` 里跳过 WebP 转码——`og:image` 与 JSON-LD 的 `logo`
   必须是 PNG。改品牌资产后跑 `node scripts/generate-social-assets.mjs` 重新生成并提交产物。
