@@ -1,4 +1,5 @@
 import { styled } from 'styled-components'
+import { Link } from 'wouter'
 import { marquee, type RevealProps, reveal } from './animation'
 import { container, containers, fromContainer } from './responsive'
 
@@ -373,6 +374,84 @@ export const ProductSpotActions = styled.div`
   flex-wrap: wrap;
   gap: 14px;
   margin-top: 6px;
+`
+
+/**
+ * 仿真方案子组：眉题 + 卡片。
+ *
+ * `Eyebrow` 是个 `margin: 0` 的 `<p>`（全站 reset），直接摆在两个块之间会贴死上下的
+ * CBaldur 卡片与方案卡；这里用一个容器把间距补回来，上边距取 `SectionHead` 的 56px，
+ * 与「产品矩阵」区块头到 CBaldur 的距离同源。
+ */
+export const ServiceGroup = styled.div`
+  display: grid;
+  gap: 18px;
+  margin-top: 56px;
+`
+
+/**
+ * 仿真方案卡：沿用首页卡片语汇（顶部能量线 + mono 编号 + 主色标题），
+ * 而不是通用白卡——否则与上方三大核心技术、下方成果验证放一起会明显不是一个体系。
+ */
+export const ServiceCard = styled(Link)<RevealProps>`
+  ${reveal}
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 30px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(var(--accent-rgb), 0.06), transparent 60%),
+    var(--bg-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+
+  /* 顶部能量线：与 TechCard 同一签名细节，常驻而不是 hover 才浮现 */
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-deep), transparent);
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-card);
+  }
+
+  & h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+
+  & p {
+    color: var(--text-muted);
+    font-size: 0.94rem;
+    line-height: 1.75;
+  }
+
+  /* 可点提示：卡片是链接，不能看着像一段静态文字（与装置卡 DeviceCard 同一措词） */
+  & em {
+    margin-top: 4px;
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    color: var(--accent-ink);
+  }
 `
 
 /** 右侧 mini 控制台视窗。 */

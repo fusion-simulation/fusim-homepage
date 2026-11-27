@@ -39,6 +39,8 @@ import {
   ProductSpot,
   ProductSpotActions,
   ProductSpotText,
+  ServiceCard,
+  ServiceGroup,
   TechCard,
   TechDesc,
   TechGlyph,
@@ -57,7 +59,6 @@ import {
   BtnLink,
   ButtonIcon,
   CardGrid,
-  CardLink,
   Eyebrow,
   SectionHead,
   Shell,
@@ -202,15 +203,16 @@ const verifications = [
 
 /* ---------- 产品 ---------- */
 
-function ProductCard({ product }: { product: ContentPage }) {
+function ProductCard({ product, index }: { product: ContentPage; index: number }) {
   const { frontmatter } = product
   const description = frontmatter.desp ?? frontmatter.description
 
   return (
-    <CardLink href={product.url} $delay={1}>
+    <ServiceCard href={product.url} $delay={index}>
       <h3>{frontmatter.title}</h3>
       {description ? <p>{description}</p> : null}
-    </CardLink>
+      <em>查看方案 →</em>
+    </ServiceCard>
   )
 }
 
@@ -417,14 +419,14 @@ export function HomePage() {
           </ProductSpot>
 
           {services.length > 0 ? (
-            <>
+            <ServiceGroup>
               <Eyebrow>SERVICE · 仿真方案</Eyebrow>
               <CardGrid>
-                {services.map((product) => (
-                  <ProductCard key={product.url} product={product} />
+                {services.map((product, index) => (
+                  <ProductCard key={product.url} product={product} index={index} />
                 ))}
               </CardGrid>
-            </>
+            </ServiceGroup>
           ) : null}
         </Shell>
       </Band>

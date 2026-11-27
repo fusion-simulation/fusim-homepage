@@ -216,18 +216,6 @@ export const Card = styled.div<RevealProps>`
   ${reveal}
 `
 
-/** 产品卡片：内部路由。 */
-export const CardLink = styled(Link)<RevealProps>`
-  ${cardCss}
-  ${reveal}
-`
-
-/** 产品卡片：外链。 */
-export const CardAnchor = styled.a<RevealProps>`
-  ${cardCss}
-  ${reveal}
-`
-
 export const Split = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
