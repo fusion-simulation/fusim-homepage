@@ -1,17 +1,14 @@
 import { PageHeader } from '../components/PageHeader'
 import {
   cellAccessibilityText,
-  compute,
   coverage,
   evidence,
   legend,
   processes,
-  solvers,
 } from '../content/product-matrix'
 import { type ContentPage, contentPageByUrl } from '../lib/content'
 import {
   CellLabel,
-  ComputeRow,
   CoverageBar,
   CoverageCell,
   DeliveryCell,
@@ -20,8 +17,6 @@ import {
   DeviceTags,
   EvidenceGrid,
   EvidenceItem,
-  ExitActions,
-  ExitBand,
   Legend,
   MatrixAction,
   MatrixBand,
@@ -31,20 +26,9 @@ import {
   MatrixRow,
   OverviewBand,
   ProcessCell,
-  SolverCell,
-  SolverStrip,
   StateDot,
 } from '../styles/matrix'
-import {
-  Band,
-  BtnAnchor,
-  BtnLink,
-  ButtonIcon,
-  Eyebrow,
-  SectionHead,
-  Shell,
-  SrOnly,
-} from '../styles/shared'
+import { Band, BtnAnchor, ButtonIcon, Eyebrow, SectionHead, Shell, SrOnly } from '../styles/shared'
 
 /** 两列的列名。窄屏由 CellLabel 显示，宽屏由列头显示；两者都用这份常量，避免漂移。 */
 const SAAS_LABEL = '标准产品 · CBaldur'
@@ -63,10 +47,7 @@ const frc = devicePage('/products/service_frc/')
 export function ProductsPage() {
   return (
     <>
-      <PageHeader
-        title="产品矩阵"
-        description="哪些过程能算、哪些装置上算过，两种交付形态各交付什么。"
-      />
+      <PageHeader title="产品矩阵" description="" />
 
       <OverviewBand>
         <CoverageBar>
@@ -74,13 +55,6 @@ export function ProductsPage() {
             <dt>物理过程</dt>
             <dd>
               {coverage.processes}
-              <span>类</span>
-            </dd>
-          </CoverageCell>
-          <CoverageCell>
-            <dt>自主求解器</dt>
-            <dd>
-              {coverage.solvers}
               <span>类</span>
             </dd>
           </CoverageCell>
@@ -107,7 +81,6 @@ export function ProductsPage() {
           <MatrixHeadBlock>
             <Eyebrow>COVERAGE</Eyebrow>
             <h2>覆盖矩阵</h2>
-            <p>行是物理过程，两列是交付形态；装置列是有案例支撑的对象。</p>
           </MatrixHeadBlock>
 
           <MatrixHead aria-hidden="true">
@@ -174,40 +147,12 @@ export function ProductsPage() {
         </Shell>
       </MatrixBand>
 
-      {/* ---------- 支撑层 ---------- */}
-      <Band $tint>
-        <Shell>
-          <SectionHead>
-            <Eyebrow>FOUNDATION</Eyebrow>
-            <h2>矩阵的地基</h2>
-            <p>矩阵不是几段孤立的模型：5 类自主求解器托住物理过程，国产异构算力托住求解器。</p>
-          </SectionHead>
-
-          <SolverStrip>
-            {solvers.map((solver) => (
-              <SolverCell key={solver.no}>
-                <span>{solver.no}</span>
-                <strong>{solver.label}</strong>
-                <p>{solver.text}</p>
-              </SolverCell>
-            ))}
-          </SolverStrip>
-
-          <ComputeRow>
-            <strong>{compute.value}</strong>
-            <p>
-              <b>{compute.label}</b> · {compute.text}
-            </p>
-          </ComputeRow>
-        </Shell>
-      </Band>
-
       {/* ---------- 装置与证据 ---------- */}
       <Band>
         <Shell>
           <SectionHead>
-            <Eyebrow>EVIDENCE</Eyebrow>
-            <h2>装置与证据</h2>
+            <Eyebrow>CASE</Eyebrow>
+            <h2>装置与案例</h2>
             <p>两个方向都已进入实际工程：托卡马克的全过程模拟，与场反位形的压缩过程模拟。</p>
           </SectionHead>
 
@@ -241,27 +186,6 @@ export function ProductsPage() {
               </EvidenceItem>
             ))}
           </EvidenceGrid>
-        </Shell>
-      </Band>
-
-      {/* ---------- 出口 ---------- */}
-      <Band $tint>
-        <Shell>
-          <ExitBand>
-            <h2>没列到的，可以按需评估</h2>
-            <p>
-              新的装置构型、还没列进矩阵的物理过程，我们按项目评估——先把要算的东西讲清楚，再谈能不能算、怎么算。
-            </p>
-            <ExitActions>
-              <BtnLink href="/contact/" $variant="primary">
-                预约合作
-              </BtnLink>
-              <BtnAnchor href="https://docs.fusim.cn/" $variant="light">
-                访问产品文档
-                <ButtonIcon />
-              </BtnAnchor>
-            </ExitActions>
-          </ExitBand>
         </Shell>
       </Band>
     </>

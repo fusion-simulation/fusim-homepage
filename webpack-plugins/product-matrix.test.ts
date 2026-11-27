@@ -4,10 +4,10 @@ import {
   cellAccessibilityText,
   compute,
   coverage,
+  devices,
   evidence,
   legend,
   processes,
-  solvers,
 } from '../src/content/product-matrix.ts'
 
 const STATES = ['delivered', 'scoped', 'planned']
@@ -39,15 +39,13 @@ test('CBaldur 只认前三行，其余按需评估，不冒充已上线', () => 
 
 test('概览数字从数据派生，写死的数字对不上就失败', () => {
   assert.equal(coverage.processes, processes.length)
-  assert.equal(coverage.solvers, solvers.length)
+  assert.equal(coverage.devices, devices.length)
   assert.equal(coverage.evidence, evidence.length)
-  assert.equal(coverage.devices, 2)
 })
 
-test('5 类求解器与算力结论都有出处', () => {
-  assert.equal(solvers.length, 5)
-  assert.ok(solvers.every((s) => s.label.length > 0 && s.text.length > 0))
+test('算力结论有出处', () => {
   assert.match(compute.value, /2\.0/)
+  assert.ok(compute.label && compute.text)
   assert.ok(evidence.length > 0 && evidence.every((e) => e.org && e.claim))
 })
 

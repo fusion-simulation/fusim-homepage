@@ -3,7 +3,6 @@
  *
  * 这是 /products/ 唯一的事实来源，全部取自已公开的 `bp.pdf` 与站内 MDX：
  * - 8 类物理过程 = BP「聚变专用物理模型矩阵」6 类 + 高能粒子、磁流体稳定性；
- * - 5 类求解器 = BP「自主求解器体系」；
  * - 2 类装置 = 托卡马克、场反位形（FRC）。
  *
  * 状态只有三种，没有「不支持」：缺省即不列，不自我否定也不夸大。
@@ -32,13 +31,6 @@ export type MatrixProcess = {
   devices: readonly string[]
 }
 
-/** 支撑层的一类求解器。 */
-export type Solver = {
-  no: string
-  label: string
-  text: string
-}
-
 export const processes: readonly MatrixProcess[] = [
   {
     no: '01',
@@ -47,7 +39,7 @@ export const processes: readonly MatrixProcess[] = [
     summary: '位形、剖面与稳定性底图',
     saas: { state: 'delivered', text: '平衡求解器，云端即用' },
     service: { state: 'delivered', text: '托卡马克平衡场 · FRC 形成与平衡' },
-    devices: ['托卡马克', 'FRC'],
+    devices: ['托卡马克', '仿星器', 'FRC'],
   },
   {
     no: '02',
@@ -56,7 +48,7 @@ export const processes: readonly MatrixProcess[] = [
     summary: '稳定性判定与非线性演化',
     saas: { state: 'delivered', text: 'MHD 求解器，稳定性与演化' },
     service: { state: 'delivered', text: '鱼骨模等不稳定性演化' },
-    devices: ['托卡马克', 'FRC 磁压缩'],
+    devices: ['托卡马克', '仿星器', 'FRC'],
   },
   {
     no: '03',
@@ -65,7 +57,7 @@ export const processes: readonly MatrixProcess[] = [
     summary: '能量与粒子输运剖面',
     saas: { state: 'delivered', text: '输运求解器，剖面输出' },
     service: { state: 'delivered', text: '输运剖面对比与实验验证' },
-    devices: ['托卡马克'],
+    devices: ['托卡马克', '仿星器', 'FRC'],
   },
   {
     no: '04',
@@ -74,7 +66,7 @@ export const processes: readonly MatrixProcess[] = [
     summary: '高能粒子轨道与驱动的模',
     saas: { state: 'scoped', text: '按需评估' },
     service: { state: 'delivered', text: '香蕉轨道追踪 · 鱼骨模驱动' },
-    devices: ['托卡马克'],
+    devices: ['托卡马克', 'FRC'],
   },
   {
     no: '05',
@@ -114,14 +106,6 @@ export const processes: readonly MatrixProcess[] = [
   },
 ]
 
-export const solvers: readonly Solver[] = [
-  { no: '01', label: '平衡', text: '位形、剖面与稳定性底图' },
-  { no: '02', label: '磁流体', text: '稳定性与非线性演化' },
-  { no: '03', label: '输运', text: '能量与粒子剖面' },
-  { no: '04', label: '粒子与中性束', text: '轨道损失与驱动的模' },
-  { no: '05', label: '壁面与器壁相互作用', text: '热负荷、溅射与材料响应' },
-]
-
 export const compute = {
   label: '国产异构算力',
   value: '2.0×',
@@ -132,7 +116,7 @@ export const compute = {
 export const evidence: readonly { org: string; claim: string }[] = [
   { org: '中科院等离子体所', claim: '仿真-实验关键指标一致' },
   { org: '华为', claim: '国产聚变程序与国产算力首次适配' },
-  { org: '星能玄光', claim: 'FRC 磁压缩模拟，实验成本降 60%' },
+  { org: '星能玄光', claim: 'FRC 磁压缩模拟' },
   { org: '新奥能源研究院', claim: '氢硼研究基金立项' },
 ]
 
@@ -144,7 +128,6 @@ export const devices: readonly string[] = ['托卡马克', '场反位形（FRC�
 
 export const coverage = {
   processes: processes.length,
-  solvers: solvers.length,
   devices: devices.length,
   evidence: evidence.length,
 }

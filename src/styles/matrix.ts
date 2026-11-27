@@ -41,18 +41,17 @@ export const MatrixHeadBlock = styled(SectionHead)`
 
 /* ---------- 概览带：4 个数字 ---------- */
 
-/** 1px 间隙 + 底色 = 无论怎么换行都不会出错的发丝分隔线。 */
+/**
+ * 1px 间隙 + 底色 = 无论怎么换行都不会出错的发丝分隔线。
+ * 格数会随数据增减，列数用 auto-fit 跟着走，不写死（写死会留出一格空白）。
+ */
 export const CoverageBar = styled.dl`
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
-
-  ${fromContainer(containers.shell, 'stats')} {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 `
 
 export const CoverageCell = styled.div`
